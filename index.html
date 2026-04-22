@@ -591,6 +591,16 @@ async function syncFromSupabase(){
   if(_syncInProgress){return;}
   _syncInProgress=true;
   let timeoutId;
+  // Snapshot del estado actual — se restaura si algo falla
+  const snap={
+    categories:[...state.categories],
+    transactions:[...state.transactions],
+    fixedCosts:[...state.fixedCosts],
+    fixedCostRecords:[...state.fixedCostRecords],
+    variableBudgets:[...state.variableBudgets],
+    debts:[...state.debts],
+    receivables:[...state.receivables],
+  };
   try{
     setSyncStatus('sincronizando…');
     // Timeout de 15 s: evita que la app quede trabada si Supabase no responde
@@ -611,6 +621,15 @@ async function syncFromSupabase(){
     const[{data:cats,error:e1},{data:txs,error:e2},{data:fcs,error:e3},{data:frs,error:e4},{data:vbs,error:e5},{data:dbs,error:e6},{data:rcvs,error:e7}]=await Promise.race([queryAll,timeout]);
     clearTimeout(timeoutId);
     if(e1||e2||e3||e4||e5||e6||e7)throw(e1||e2||e3||e4||e5||e6||e7);
+    // Guard anti-vaciado: si teníamos datos y los resultados vienen vacíos, no sobreescribir
+    const hadData=snap.categories.length||snap.transactions.length||snap.fixedCosts.length;
+    const gotEmpty=!(cats&&cats.length)&&!(txs&&txs.length)&&!(fcs&&fcs.length);
+    if(hadData&&gotEmpty){
+      console.warn('syncFromSupabase: respuesta vacía con datos previos — conservando snapshot');
+      setSyncStatus('✓ sin cambios');
+      renderCurrentTab();
+      return;
+    }
     // — Categorías —
     const mapped=(cats||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
     state.categories=mapped;
@@ -631,9 +650,11 @@ async function syncFromSupabase(){
   }catch(err){
     clearTimeout(timeoutId);
     console.error('syncFromSupabase error:',err);
+    // Restaurar snapshot — nunca dejar la app vacía por un error de red
+    Object.assign(state,snap);
     setSyncStatus('⚠ sin sync');
-    showToast('Error de sincronización: '+(err.message||'revisá tu conexión'));
-    renderCurrentTab(); // renderizar de todas formas con el estado actual
+    showToast('No se pudo sincronizar. Mostrando últimos datos disponibles.');
+    renderCurrentTab();
   }finally{
     _syncInProgress=false;
   }
@@ -1358,8 +1379,12 @@ async function boot(){
   // con la sesión vigente (si la hay), sin necesidad de llamar getSession() aparte.
   // Esto evita que onSession() se ejecute dos veces.
   state.supabase.auth.onAuthStateChange(async(event,session)=>{
-    if(session){
+    if((event==='INITIAL_SESSION'||event==='SIGNED_IN')&&session){
+      // Solo cargar datos en el inicio de sesión real — no en refreshes de token
       await onSession(session);
+    }else if(event==='TOKEN_REFRESHED'&&session&&state.user){
+      // Actualizar el token silenciosamente, sin re-sincronizar ni borrar datos
+      state.user=session.user;
     }else if(event==='SIGNED_OUT'){
       // Solo limpiar estado si el usuario cerró sesión activamente
       onSignOut();
