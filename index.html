@@ -9,15 +9,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        colors: {
-          bg:'#0b0f14', surface:'#141a22', card:'#1b232d', line:'#253142',
-          text:'#e6edf3', muted:'#8b97a8', brand:'#4f8cff', income:'#22c55e', expense:'#ef4444',
-        }
-      }
-    }
+    darkMode:'class',
+    theme:{ extend:{ colors:{
+      bg:'#0b0f14',surface:'#141a22',card:'#1b232d',line:'#253142',
+      text:'#e6edf3',muted:'#8b97a8',brand:'#4f8cff',income:'#22c55e',expense:'#ef4444'
+    }}}
   }
 </script>
 <style>
@@ -31,11 +27,23 @@
   .modal-backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);}
   input,select,textarea{background:#1b232d;color:#e6edf3;border:1px solid #253142;border-radius:8px;padding:8px 10px;outline:none;}
   input:focus,select:focus,textarea:focus{border-color:#4f8cff;}
+  input[type="color"]{padding:2px 4px;height:40px;}
   ::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#253142;border-radius:4px;}
   .fade-in{animation:fi .2s ease;}
   @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   .skeleton{background:linear-gradient(90deg,#1b232d 0%,#253142 50%,#1b232d 100%);background-size:200% 100%;animation:sk 1.2s infinite;}
   @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* Auth screen */
+  .auth-input-group{position:relative;}
+  .auth-input-group input{width:100%;padding-left:40px;}
+  .auth-input-group .auth-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#8b97a8;pointer-events:none;}
+  .auth-msg{font-size:12px;border-radius:8px;padding:8px 12px;text-align:center;}
+  .auth-msg.error{background:rgba(239,68,68,.12);color:#ef4444;}
+  .auth-msg.success{background:rgba(34,197,94,.12);color:#22c55e;}
+  .auth-btn{width:100%;padding:12px;border-radius:12px;font-weight:600;font-size:14px;transition:opacity .15s;background:#4f8cff;color:#fff;}
+  .auth-btn:disabled{opacity:.6;cursor:not-allowed;}
+  .auth-tab{flex:1;padding:8px;border-radius:10px;font-size:13px;font-weight:500;transition:all .15s;}
 
   /* Category card menu */
   .cat-card{position:relative;border-radius:12px;background:#1b232d;border:1px solid #253142;overflow:visible;}
@@ -44,9 +52,7 @@
   .cat-dropdown{position:absolute;top:34px;right:0;z-index:50;background:#141a22;border:1px solid #253142;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:140px;overflow:hidden;animation:fi .12s ease;}
   .cat-dropdown.hidden{display:none;}
   .cat-drop-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:11px 14px;font-size:14px;transition:background .12s;}
-  .cat-drop-item:hover{background:#1b232d;}
-  .cat-drop-item.danger{color:#ef4444;}
-  .cat-drop-item.disabled{color:#8b97a8;opacity:.5;cursor:not-allowed;}
+  .cat-drop-item:hover{background:#1b232d;}.cat-drop-item.danger{color:#ef4444;}.cat-drop-item.disabled{color:#8b97a8;opacity:.5;cursor:not-allowed;}
   .cat-drop-divider{height:1px;background:#253142;}
 
   /* Control tab */
@@ -55,44 +61,78 @@
   .ctrl-sec-header:hover{background:rgba(37,49,66,.5);}
   .ctrl-sec-body{border-top:1px solid #253142;}
   .ctrl-item{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #253142;transition:background .12s;}
-  .ctrl-item:last-child{border-bottom:none;}
-  .ctrl-item:hover{background:rgba(37,49,66,.3);}
+  .ctrl-item:last-child{border-bottom:none;}.ctrl-item:hover{background:rgba(37,49,66,.3);}
   .ctrl-badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:500;}
-  .badge-pending{background:rgba(234,179,8,.12);color:#eab308;}
-  .badge-partial{background:rgba(79,140,255,.12);color:#4f8cff;}
+  .badge-pending{background:rgba(234,179,8,.12);color:#eab308;}.badge-partial{background:rgba(79,140,255,.12);color:#4f8cff;}
   .badge-paid,.badge-collected{background:rgba(34,197,94,.12);color:#22c55e;}
   .ctrl-prog-track{height:5px;border-radius:99px;background:#253142;overflow:hidden;margin-top:5px;}
   .ctrl-prog-fill{height:100%;border-radius:99px;transition:width .3s;}
   .ctrl-iconbtn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#8b97a8;transition:background .12s,color .12s;flex-shrink:0;}
-  .ctrl-iconbtn:hover{background:#253142;color:#e6edf3;}
-  .ctrl-iconbtn.del:hover{color:#ef4444;}
-
-  /* Selector sheet */
+  .ctrl-iconbtn:hover{background:#253142;color:#e6edf3;}.ctrl-iconbtn.del:hover{color:#ef4444;}
   .sel-opt{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;border-radius:14px;background:#1b232d;border:1px solid #253142;font-size:13px;font-weight:500;transition:border-color .15s,background .15s;}
   .sel-opt:hover{border-color:#4f8cff;background:#253142;}
   .sel-opt-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;}
-
-  /* Toggle paid button */
   .toggle-paid{width:34px;height:34px;border-radius:50%;border:2px solid #253142;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
   .toggle-paid.paid{background:rgba(34,197,94,.15);border-color:#22c55e;}
 
-  /* Bottom sheet modal on mobile */
-  @media(max-width:639px){
-    .sheet-wrap{align-items:flex-end!important;}
-    .sheet-inner{border-radius:20px 20px 0 0!important;max-height:92vh!important;}
-  }
-
-  /* Responsive grid */
-  @media(min-width:640px){
-    .ctrl-grid-4{grid-template-columns:repeat(4,1fr)!important;}
-    .ctrl-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    .ctrl-2col>.ctrl-section{margin-bottom:0;}
-  }
+  @media(max-width:639px){.sheet-wrap{align-items:flex-end!important;}.sheet-inner{border-radius:20px 20px 0 0!important;max-height:92vh!important;}}
+  @media(min-width:640px){.ctrl-grid-4{grid-template-columns:repeat(4,1fr)!important;}.ctrl-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}}
 </style>
 </head>
 <body class="dark">
 
-<div id="app" class="min-h-screen flex flex-col">
+<!-- ===== AUTH SCREEN ===== -->
+<div id="authScreen" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style="background:#0b0f14;">
+  <div class="w-full max-w-sm py-8">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4" style="background:rgba(79,140,255,.15);border:1px solid rgba(79,140,255,.3);">💰</div>
+      <h1 class="text-2xl font-bold">Finanzas</h1>
+      <p class="text-muted text-sm mt-1">Tu dinero, bajo control</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex bg-card border border-line rounded-xl p-1 mb-5 gap-1">
+      <button id="tabSignIn" class="auth-tab tab-active">Iniciar sesión</button>
+      <button id="tabSignUp" class="auth-tab tab-inactive">Crear cuenta</button>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="signInForm" class="space-y-3">
+      <div class="auth-input-group">
+        <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <input id="siEmail" type="email" placeholder="Email" autocomplete="email" />
+      </div>
+      <div class="auth-input-group">
+        <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input id="siPassword" type="password" placeholder="Contraseña" autocomplete="current-password" />
+      </div>
+      <div id="siMsg" class="auth-msg hidden"></div>
+      <button id="btnSignIn" class="auth-btn">Iniciar sesión</button>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signUpForm" class="hidden space-y-3">
+      <div class="auth-input-group">
+        <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <input id="suEmail" type="email" placeholder="Email" autocomplete="email" />
+      </div>
+      <div class="auth-input-group">
+        <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input id="suPassword" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="new-password" />
+      </div>
+      <div class="auth-input-group">
+        <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input id="suConfirm" type="password" placeholder="Confirmar contraseña" autocomplete="new-password" />
+      </div>
+      <div id="suMsg" class="auth-msg hidden"></div>
+      <button id="btnSignUp" class="auth-btn">Crear cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" class="hidden min-h-screen flex flex-col">
   <header class="px-4 pt-4 pb-2 flex items-center justify-between">
     <div>
       <div class="text-muted text-xs uppercase tracking-widest">Balance actual</div>
@@ -110,24 +150,19 @@
 
   <nav class="fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur border-t border-line flex justify-around items-center py-1 z-20">
     <button data-tab="home" class="tab-btn flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px]">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
-      Inicio
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Inicio
     </button>
     <button data-tab="dashboard" class="tab-btn flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px]">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
-      Dashboard
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Dashboard
     </button>
     <button data-tab="control" class="tab-btn flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px]">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
-      Control
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>Control
     </button>
     <button data-tab="categories" class="tab-btn flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px]">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Categorías
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Categorías
     </button>
     <button data-tab="settings" class="tab-btn flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px]">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-      Ajustes
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes
     </button>
   </nav>
 </div>
@@ -137,31 +172,20 @@
   <div class="bg-surface w-full max-w-md rounded-2xl border border-line fade-in mx-4 overflow-hidden">
     <div class="flex items-center justify-between p-4 border-b border-line">
       <h3 id="txTitle" class="text-lg font-semibold">Nuevo movimiento</h3>
-      <button id="txClose" class="p-2 rounded-lg hover:bg-card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button id="txClose" class="p-2 rounded-lg hover:bg-card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="p-4 space-y-4">
       <div id="txAmountDisplay" class="text-center text-4xl font-semibold py-3 rounded-xl bg-card">$0</div>
       <div class="grid grid-cols-3 gap-2">
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="1">1</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="2">2</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="3">3</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="4">4</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="5">5</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="6">6</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="7">7</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="8">8</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="9">9</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key=",">,</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="0">0</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="back">⌫</button>
+        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="1">1</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="2">2</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="3">3</button>
+        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="4">4</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="5">5</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="6">6</button>
+        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="7">7</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="8">8</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="9">9</button>
+        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key=",">,</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="0">0</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="back">⌫</button>
       </div>
-      <div>
-        <div class="text-xs text-muted uppercase tracking-wider mb-2">Categoría</div>
-        <div id="txCategories" class="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto"></div>
-      </div>
+      <div><div class="text-xs text-muted uppercase tracking-wider mb-2">Categoría</div><div id="txCategories" class="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto"></div></div>
       <div class="grid grid-cols-2 gap-2">
         <label class="text-sm"><span class="block text-xs text-muted mb-1">Fecha</span><input id="txDate" type="date" class="w-full" /></label>
-        <label class="text-sm"><span class="block text-xs text-muted mb-1">Nota (opcional)</span><input id="txNote" type="text" class="w-full" placeholder="Ej: supermercado" /></label>
+        <label class="text-sm"><span class="block text-xs text-muted mb-1">Nota</span><input id="txNote" type="text" class="w-full" placeholder="Opcional" /></label>
       </div>
     </div>
     <div class="p-4 border-t border-line flex gap-2">
@@ -176,13 +200,13 @@
   <div class="bg-surface w-full max-w-md rounded-2xl border border-line fade-in mx-4">
     <div class="flex items-center justify-between p-4 border-b border-line">
       <h3 id="catTitle" class="text-lg font-semibold">Nueva categoría</h3>
-      <button id="catClose" class="p-2 rounded-lg hover:bg-card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button id="catClose" class="p-2 rounded-lg hover:bg-card"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="p-4 space-y-3">
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Nombre</span><input id="catName" type="text" class="w-full" placeholder="Ej: Transporte" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span><select id="catType" class="w-full"><option value="expense">Egreso</option><option value="income">Ingreso</option></select></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ícono (emoji)</span><input id="catIcon" type="text" class="w-full" maxlength="4" placeholder="🛒" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Color</span><input id="catColor" type="color" class="w-full h-10 p-1" value="#4f8cff" /></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Color</span><input id="catColor" type="color" class="w-full" value="#4f8cff" /></label>
     </div>
     <div class="p-4 border-t border-line flex gap-2">
       <button id="catCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -206,15 +230,13 @@
   </div>
 </div>
 
-<!-- ===== CONTROL MODALS ===== -->
-
-<!-- Type selector sheet -->
+<!-- Control: Type selector sheet -->
 <div id="selectorSheet" class="hidden fixed inset-0 z-30 modal-backdrop sheet-wrap flex items-end sm:items-center justify-center">
   <div class="sheet-inner bg-surface w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-line fade-in">
     <div class="w-10 h-1 bg-line rounded-full mx-auto mt-3 mb-1 sm:hidden"></div>
     <div class="px-4 py-3 border-b border-line flex items-center justify-between">
       <h3 class="font-semibold">¿Qué querés agregar?</h3>
-      <button id="selectorClose" class="p-1.5 rounded-lg hover:bg-card"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button id="selectorClose" class="p-1.5 rounded-lg hover:bg-card"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="p-4 grid grid-cols-2 gap-3">
       <button class="sel-opt" data-type="fixed"><span class="sel-opt-icon" style="background:#f59e0b22;">🔁</span>Gasto fijo</button>
@@ -222,7 +244,7 @@
       <button class="sel-opt" data-type="debt"><span class="sel-opt-icon" style="background:#ef444422;">💳</span>Deuda</button>
       <button class="sel-opt" data-type="receivable"><span class="sel-opt-icon" style="background:#22c55e22;">🤝</span>Por cobrar</button>
     </div>
-    <div class="px-4 pb-4 sm:pb-4"><button id="selectorCancelBtn" class="w-full py-3 rounded-xl bg-card text-sm">Cancelar</button></div>
+    <div class="px-4 pb-4"><button id="selectorCancelBtn" class="w-full py-3 rounded-xl bg-card text-sm">Cancelar</button></div>
   </div>
 </div>
 
@@ -237,11 +259,8 @@
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Nombre</span><input id="fcName" type="text" class="w-full" placeholder="Ej: Alquiler" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto</span><input id="fcAmount" type="number" min="0" class="w-full" placeholder="0" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Día de vencimiento (1–31)</span><input id="fcDueDay" type="number" min="1" max="31" class="w-full" placeholder="10" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ícono (emoji)</span><input id="fcIcon" type="text" maxlength="4" class="w-full" placeholder="🏠" /></label>
-      <label class="flex items-center gap-3 text-sm cursor-pointer select-none">
-        <input id="fcActive" type="checkbox" checked class="w-4 h-4 accent-brand" />
-        <span>Activo (se genera cada mes)</span>
-      </label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ícono</span><input id="fcIcon" type="text" maxlength="4" class="w-full" placeholder="🏠" /></label>
+      <label class="flex items-center gap-3 text-sm cursor-pointer select-none"><input id="fcActive" type="checkbox" checked class="w-4 h-4 accent-brand" /><span>Activo (se genera cada mes)</span></label>
     </div>
     <div class="p-4 border-t border-line flex gap-2 flex-shrink-0">
       <button id="fixedModalCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -260,7 +279,7 @@
     <div class="p-4 space-y-3 overflow-y-auto flex-1">
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Categoría</span><select id="vbCategory" class="w-full"></select></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto presupuestado</span><input id="vbAmount" type="number" min="0" class="w-full" placeholder="0" /></label>
-      <div class="text-xs text-muted rounded-lg bg-card border border-line p-3">El presupuesto se aplicará para <strong id="vbMonthLabel" class="text-text"></strong>.</div>
+      <div class="text-xs text-muted rounded-lg bg-card border border-line p-3">Aplicado para <strong id="vbMonthLabel" class="text-text"></strong>.</div>
     </div>
     <div class="p-4 border-t border-line flex gap-2 flex-shrink-0">
       <button id="variableModalCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -280,25 +299,12 @@
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Persona / Entidad</span><input id="dbName" type="text" class="w-full" placeholder="Ej: Banco Galicia" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Concepto</span><input id="dbConcept" type="text" class="w-full" placeholder="Ej: Préstamo personal" /></label>
       <div class="grid grid-cols-2 gap-2">
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="dbTotal" type="number" min="0" class="w-full" placeholder="0" /></label>
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya pagado</span><input id="dbPaid" type="number" min="0" class="w-full" placeholder="0" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="dbTotal" type="number" min="0" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya pagado</span><input id="dbPaid" type="number" min="0" class="w-full" /></label>
       </div>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Fecha límite</span><input id="dbDue" type="date" class="w-full" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span>
-        <select id="dbType" class="w-full">
-          <option value="loan">Préstamo</option>
-          <option value="card">Tarjeta</option>
-          <option value="current_account">Cuenta corriente</option>
-          <option value="other">Otro</option>
-        </select>
-      </label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span>
-        <select id="dbStatus" class="w-full">
-          <option value="pending">Pendiente</option>
-          <option value="partial">Parcial</option>
-          <option value="paid">Saldado</option>
-        </select>
-      </label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span><select id="dbType" class="w-full"><option value="loan">Préstamo</option><option value="card">Tarjeta</option><option value="current_account">Cuenta corriente</option><option value="other">Otro</option></select></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span><select id="dbStatus" class="w-full"><option value="pending">Pendiente</option><option value="partial">Parcial</option><option value="paid">Saldado</option></select></label>
     </div>
     <div class="p-4 border-t border-line flex gap-2 flex-shrink-0">
       <button id="debtModalCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -318,25 +324,12 @@
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Persona / Entidad</span><input id="rcvName" type="text" class="w-full" placeholder="Ej: Juan Pérez" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Concepto</span><input id="rcvConcept" type="text" class="w-full" placeholder="Ej: Préstamo" /></label>
       <div class="grid grid-cols-2 gap-2">
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="rcvTotal" type="number" min="0" class="w-full" placeholder="0" /></label>
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya cobrado</span><input id="rcvCollected" type="number" min="0" class="w-full" placeholder="0" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="rcvTotal" type="number" min="0" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya cobrado</span><input id="rcvCollected" type="number" min="0" class="w-full" /></label>
       </div>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Fecha estimada de cobro</span><input id="rcvDate" type="date" class="w-full" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span>
-        <select id="rcvType" class="w-full">
-          <option value="loan">Préstamo</option>
-          <option value="current_account">Cuenta corriente</option>
-          <option value="sale">Venta</option>
-          <option value="other">Otro</option>
-        </select>
-      </label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span>
-        <select id="rcvStatus" class="w-full">
-          <option value="pending">Pendiente</option>
-          <option value="partial">Parcial</option>
-          <option value="collected">Cobrado</option>
-        </select>
-      </label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Fecha estimada</span><input id="rcvDate" type="date" class="w-full" /></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span><select id="rcvType" class="w-full"><option value="loan">Préstamo</option><option value="current_account">Cuenta corriente</option><option value="sale">Venta</option><option value="other">Otro</option></select></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span><select id="rcvStatus" class="w-full"><option value="pending">Pendiente</option><option value="partial">Parcial</option><option value="collected">Cobrado</option></select></label>
     </div>
     <div class="p-4 border-t border-line flex gap-2 flex-shrink-0">
       <button id="rcvModalCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -345,104 +338,182 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 bg-card border border-line rounded-lg px-4 py-2 text-sm z-40 whitespace-nowrap"></div>
 
 <script>
 /* =========================================================================
-   FINANZAS PERSONALES
+   FINANZAS PERSONALES — con Supabase Auth y RLS
    ========================================================================= */
 
 // ------- CONFIG -------
-const STORAGE_KEYS = {
-  txs:'fin_transactions', cats:'fin_categories', settings:'fin_settings',
-  fc:'fin_fixed_costs', fr:'fin_fixed_records', vb:'fin_var_budgets',
-  debts:'fin_debts', recv:'fin_receivables',
-};
-const SYSTEM_CATEGORY_NAMES = ['Otros Ing.', 'Otros Eg.'];
+const STORAGE_KEYS = { txs:'fin_transactions', cats:'fin_categories', settings:'fin_settings' };
+const SYSTEM_CATEGORY_NAMES = ['Otros Ing.','Otros Eg.'];
 
 const DEFAULT_CATEGORIES = [
-  {name:'Sueldo',type:'income',icon:'💼',color:'#22c55e'},
-  {name:'Bonos',type:'income',icon:'🎁',color:'#16a34a'},
-  {name:'Inversiones',type:'income',icon:'📈',color:'#10b981'},
-  {name:'Otros Ing.',type:'income',icon:'💰',color:'#14b8a6'},
-  {name:'Comida',type:'expense',icon:'🍔',color:'#ef4444'},
-  {name:'Transporte',type:'expense',icon:'🚗',color:'#f97316'},
-  {name:'Hogar',type:'expense',icon:'🏠',color:'#eab308'},
-  {name:'Salud',type:'expense',icon:'🏥',color:'#ec4899'},
-  {name:'Ocio',type:'expense',icon:'🎮',color:'#8b5cf6'},
-  {name:'Educación',type:'expense',icon:'📚',color:'#3b82f6'},
-  {name:'Ropa',type:'expense',icon:'👕',color:'#06b6d4'},
-  {name:'Servicios',type:'expense',icon:'💡',color:'#f59e0b'},
+  {name:'Sueldo',type:'income',icon:'💼',color:'#22c55e'},{name:'Bonos',type:'income',icon:'🎁',color:'#16a34a'},
+  {name:'Inversiones',type:'income',icon:'📈',color:'#10b981'},{name:'Otros Ing.',type:'income',icon:'💰',color:'#14b8a6'},
+  {name:'Comida',type:'expense',icon:'🍔',color:'#ef4444'},{name:'Transporte',type:'expense',icon:'🚗',color:'#f97316'},
+  {name:'Hogar',type:'expense',icon:'🏠',color:'#eab308'},{name:'Salud',type:'expense',icon:'🏥',color:'#ec4899'},
+  {name:'Ocio',type:'expense',icon:'🎮',color:'#8b5cf6'},{name:'Educación',type:'expense',icon:'📚',color:'#3b82f6'},
+  {name:'Ropa',type:'expense',icon:'👕',color:'#06b6d4'},{name:'Servicios',type:'expense',icon:'💡',color:'#f59e0b'},
   {name:'Otros Eg.',type:'expense',icon:'🧾',color:'#64748b'},
 ];
 
 // ------- STATE -------
 const state = {
   tab:'home', transactions:[], categories:[], settings:{currency:'ARS',currencySymbol:'$',supabaseUrl:'',supabaseKey:''},
-  supabase:null, txModalOpen:false, txType:'expense', txAmountRaw:'', txCategoryId:null,
+  supabase:null, user:null,
+  txModalOpen:false, txType:'expense', txAmountRaw:'', txCategoryId:null,
   dashMonth:currentMonthKey(), chart:null,
-  // Control
   fixedCosts:[], fixedCostRecords:[], variableBudgets:[], debts:[], receivables:[],
-  controlMonth:currentMonthKey(),
-  ctrlSections:{fixed:true,variable:true,debt:true,recv:true},
+  controlMonth:currentMonthKey(), ctrlSections:{fixed:true,variable:true,debt:true,recv:true},
 };
 
 // ------- UTIL -------
 function currentMonthKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function todayIso(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);}
 function uid(){return 'x-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
-function fmtMoney(n,withSign=false){
-  const abs=Math.abs(n);
-  const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(abs);
-  const sign=withSign?(n<0?'-':(n>0?'+':'')):(n<0?'-':'');
-  return `${sign}${state.settings.currencySymbol}${s}`;
-}
+function fmtMoney(n){const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(abs);return `${n<0?'-':''}${state.settings.currencySymbol}${s}`;}
 function parseAmount(raw){if(!raw)return 0;const n=parseFloat(raw.replace(',','.'));return isNaN(n)?0:n;}
-function showToast(msg,ms=2400){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');
-  clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.add('hidden'),ms);
-}
+function showToast(msg,ms=2400){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.add('hidden'),ms);}
 function isSystemCategory(cat){return SYSTEM_CATEGORY_NAMES.includes(cat.name);}
-function formatMonthLabel(key){
-  const[y,m]=key.split('-').map(Number);
-  return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+function formatMonthLabel(key){const[y,m]=key.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});}
+function isValidEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+
+// ------- CONTROL: localStorage con prefijo por usuario -------
+function ctrlKey(name){const uid=state.user?.id;return uid?`u_${uid.slice(0,8)}_${name}`:name;}
+const saveFC  = ()=>localStorage.setItem(ctrlKey('fin_fc'),   JSON.stringify(state.fixedCosts));
+const saveFR  = ()=>localStorage.setItem(ctrlKey('fin_fr'),   JSON.stringify(state.fixedCostRecords));
+const saveVB  = ()=>localStorage.setItem(ctrlKey('fin_vb'),   JSON.stringify(state.variableBudgets));
+const saveDB  = ()=>localStorage.setItem(ctrlKey('fin_db'),   JSON.stringify(state.debts));
+const saveRCV = ()=>localStorage.setItem(ctrlKey('fin_rcv'),  JSON.stringify(state.receivables));
+function loadControlData(){
+  const p=(name,def=[])=>{try{return JSON.parse(localStorage.getItem(ctrlKey(name))||'null')||def;}catch{return def;}};
+  state.fixedCosts=p('fin_fc'); state.fixedCostRecords=p('fin_fr');
+  state.variableBudgets=p('fin_vb'); state.debts=p('fin_db'); state.receivables=p('fin_rcv');
 }
 
-// ------- LOCAL STORAGE -------
-function loadLocal(){
-  const parse=(k,def)=>{try{return JSON.parse(localStorage.getItem(k)||'null')||def;}catch{return def;}};
-  state.transactions=parse(STORAGE_KEYS.txs,[]);
-  state.categories=parse(STORAGE_KEYS.cats,null);
-  state.settings=Object.assign(state.settings,parse(STORAGE_KEYS.settings,{}));
-  if(!state.categories){state.categories=DEFAULT_CATEGORIES.map(c=>({...c,id:uid()}));saveLocalCats();}
-  // Control data
-  state.fixedCosts=parse(STORAGE_KEYS.fc,[]);
-  state.fixedCostRecords=parse(STORAGE_KEYS.fr,[]);
-  state.variableBudgets=parse(STORAGE_KEYS.vb,[]);
-  state.debts=parse(STORAGE_KEYS.debts,[]);
-  state.receivables=parse(STORAGE_KEYS.recv,[]);
+// ------- LOCAL STORAGE (configuración) -------
+function loadSettings(){
+  try{state.settings=Object.assign(state.settings,JSON.parse(localStorage.getItem(STORAGE_KEYS.settings)||'{}'));}catch{}
 }
-const saveLocalTxs=()=>localStorage.setItem(STORAGE_KEYS.txs,JSON.stringify(state.transactions));
-const saveLocalCats=()=>localStorage.setItem(STORAGE_KEYS.cats,JSON.stringify(state.categories));
 const saveLocalSettings=()=>localStorage.setItem(STORAGE_KEYS.settings,JSON.stringify(state.settings));
-const saveFC=()=>localStorage.setItem(STORAGE_KEYS.fc,JSON.stringify(state.fixedCosts));
-const saveFR=()=>localStorage.setItem(STORAGE_KEYS.fr,JSON.stringify(state.fixedCostRecords));
-const saveVB=()=>localStorage.setItem(STORAGE_KEYS.vb,JSON.stringify(state.variableBudgets));
-const saveDB=()=>localStorage.setItem(STORAGE_KEYS.debts,JSON.stringify(state.debts));
-const saveRCV=()=>localStorage.setItem(STORAGE_KEYS.recv,JSON.stringify(state.receivables));
 
-// ------- SUPABASE -------
+// ------- SUPABASE INIT -------
 function initSupabase(){
   const{supabaseUrl,supabaseKey}=state.settings;
   if(supabaseUrl&&supabaseKey&&window.supabase){
-    try{state.supabase=window.supabase.createClient(supabaseUrl,supabaseKey);setSyncStatus('conectando…');return true;}
+    try{state.supabase=window.supabase.createClient(supabaseUrl,supabaseKey);return true;}
     catch(e){state.supabase=null;}
   }else{state.supabase=null;}return false;
 }
 function setSyncStatus(text){document.getElementById('syncStatus').textContent=text;}
+
+// ------- AUTH UI -------
+function showAuthScreen(){
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+function showApp(){
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+function switchAuthTab(tab){
+  const isIn=tab==='signin';
+  document.getElementById('signInForm').classList.toggle('hidden',!isIn);
+  document.getElementById('signUpForm').classList.toggle('hidden',isIn);
+  document.getElementById('tabSignIn').classList.toggle('tab-active',isIn);
+  document.getElementById('tabSignIn').classList.toggle('tab-inactive',!isIn);
+  document.getElementById('tabSignUp').classList.toggle('tab-active',!isIn);
+  document.getElementById('tabSignUp').classList.toggle('tab-inactive',isIn);
+  document.getElementById('siMsg').classList.add('hidden');
+  document.getElementById('suMsg').classList.add('hidden');
+}
+function setAuthMsg(elId,msg,type='error'){
+  const el=document.getElementById(elId);
+  el.textContent=msg;el.className=`auth-msg ${type}`;el.classList.remove('hidden');
+}
+function setAuthBtnLoading(btnId,loading,normalText){
+  const btn=document.getElementById(btnId);
+  btn.textContent=loading?'Cargando…':normalText;
+  btn.disabled=loading;
+}
+function translateAuthError(msg){
+  const map={
+    'Invalid login credentials':'Email o contraseña incorrectos',
+    'Email not confirmed':'Confirmá tu email antes de entrar',
+    'User already registered':'Este email ya tiene una cuenta',
+    'Password should be at least 6 characters':'La contraseña debe tener al menos 6 caracteres',
+    'Unable to validate email address: invalid format':'Formato de email inválido',
+    'signup is disabled':'El registro está deshabilitado',
+    'email rate limit exceeded':'Demasiados intentos. Esperá unos minutos',
+  };
+  for(const[k,v] of Object.entries(map)){if(msg.toLowerCase().includes(k.toLowerCase()))return v;}
+  return msg;
+}
+
+// ------- AUTH ACTIONS -------
+async function doSignIn(){
+  const email=document.getElementById('siEmail').value.trim();
+  const password=document.getElementById('siPassword').value;
+  document.getElementById('siMsg').classList.add('hidden');
+  if(!email){setAuthMsg('siMsg','Ingresá tu email');return;}
+  if(!isValidEmail(email)){setAuthMsg('siMsg','Email inválido');return;}
+  if(!password){setAuthMsg('siMsg','Ingresá tu contraseña');return;}
+  setAuthBtnLoading('btnSignIn',true,'Iniciar sesión');
+  const{error}=await state.supabase.auth.signInWithPassword({email,password});
+  setAuthBtnLoading('btnSignIn',false,'Iniciar sesión');
+  if(error)setAuthMsg('siMsg',translateAuthError(error.message));
+  // onAuthStateChange maneja el redirect si OK
+}
+
+async function doSignUp(){
+  const email=document.getElementById('suEmail').value.trim();
+  const password=document.getElementById('suPassword').value;
+  const confirm=document.getElementById('suConfirm').value;
+  document.getElementById('suMsg').classList.add('hidden');
+  if(!email){setAuthMsg('suMsg','Ingresá tu email');return;}
+  if(!isValidEmail(email)){setAuthMsg('suMsg','Email inválido');return;}
+  if(!password){setAuthMsg('suMsg','Ingresá una contraseña');return;}
+  if(password.length<6){setAuthMsg('suMsg','La contraseña debe tener al menos 6 caracteres');return;}
+  if(password!==confirm){setAuthMsg('suMsg','Las contraseñas no coinciden');return;}
+  setAuthBtnLoading('btnSignUp',true,'Crear cuenta');
+  const{data,error}=await state.supabase.auth.signUp({email,password});
+  setAuthBtnLoading('btnSignUp',false,'Crear cuenta');
+  if(error){setAuthMsg('suMsg',translateAuthError(error.message));return;}
+  if(data.session){
+    // Confirmación de email desactivada → auto login vía onAuthStateChange
+  }else{
+    setAuthMsg('suMsg','✉️ Revisá tu email para confirmar la cuenta y luego iniciá sesión.','success');
+  }
+}
+
+async function doSignOut(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  await state.supabase.auth.signOut();
+  // onAuthStateChange limpia el estado
+}
+
+// ------- SESSION HANDLER -------
+async function onSession(session){
+  state.user=session.user;
+  loadControlData(); // cargar datos de Control con prefijo del usuario
+  showApp();
+  setTab(state.tab||'home');
+  await syncFromSupabase();
+}
+
+function onSignOut(){
+  state.user=null;
+  state.transactions=[];state.categories=[];
+  state.fixedCosts=[];state.fixedCostRecords=[];
+  state.variableBudgets=[];state.debts=[];state.receivables=[];
+  showAuthScreen();
+}
+
+// ------- SUPABASE SYNC -------
 async function syncFromSupabase(){
-  if(!state.supabase){setSyncStatus('local');return;}
+  if(!state.supabase||!state.user){setSyncStatus('local');return;}
   try{
     setSyncStatus('sincronizando…');
     const[{data:cats,error:e1},{data:txs,error:e2}]=await Promise.all([
@@ -450,54 +521,60 @@ async function syncFromSupabase(){
       state.supabase.from('transactions').select('*').order('date',{ascending:false}),
     ]);
     if(e1||e2)throw(e1||e2);
-    if(cats&&cats.length>0){state.categories=cats.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));saveLocalCats();}
-    else if(cats&&cats.length===0)await pushDefaultCategories();
-    if(txs){state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));saveLocalTxs();}
+    if(cats&&cats.length>0){
+      state.categories=cats.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+    }else if(cats&&cats.length===0){
+      await pushDefaultCategories();
+    }
+    if(txs){
+      state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
+    }
     setSyncStatus('✓ sincronizado');renderCurrentTab();
-  }catch(err){console.error(err);setSyncStatus('error sync');showToast('Error sincronizando: '+(err.message||err));}
+  }catch(err){
+    console.error(err);setSyncStatus('error sync');showToast('Error sync: '+(err.message||err));
+  }
 }
+
 async function pushDefaultCategories(){
-  if(!state.supabase)return;
-  const rows=DEFAULT_CATEGORIES.map(c=>({name:c.name,type:c.type,icon:c.icon,color:c.color}));
+  if(!state.supabase||!state.user)return;
+  const rows=DEFAULT_CATEGORIES.map(c=>({name:c.name,type:c.type,icon:c.icon,color:c.color,user_id:state.user.id}));
   const{data,error}=await state.supabase.from('categories').insert(rows).select();
   if(error)throw error;
-  state.categories=data.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon,color:c.color}));saveLocalCats();
+  state.categories=data.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon,color:c.color}));
 }
-async function remoteInsertTx(tx){if(!state.supabase)return;const{error}=await state.supabase.from('transactions').insert({id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,note:tx.note});if(error)throw error;}
-async function remoteDeleteTx(id){if(!state.supabase)return;const{error}=await state.supabase.from('transactions').delete().eq('id',id);if(error)throw error;}
-async function remoteUpsertCat(cat){if(!state.supabase)return;const{error}=await state.supabase.from('categories').upsert({id:cat.id,name:cat.name,type:cat.type,icon:cat.icon,color:cat.color});if(error)throw error;}
-async function remoteDeleteCat(id){if(!state.supabase)return;const{error}=await state.supabase.from('categories').delete().eq('id',id);if(error)throw error;}
-async function remoteMigrateCatTxs(fromId,toId){if(!state.supabase)return;const{error}=await state.supabase.from('transactions').update({category_id:toId}).eq('category_id',fromId);if(error)throw error;}
 
-// ------- CONTROL: MONTHLY RECURRENCE -------
-function ensureFixedRecords(monthKey){
-  const existingIds=new Set(state.fixedCostRecords.filter(r=>r.month===monthKey).map(r=>r.fixedCostId));
-  let changed=false;
-  for(const fc of state.fixedCosts){
-    if(!fc.active||existingIds.has(fc.id))continue;
-    const createdMonth=(fc.createdAt||'').slice(0,7);
-    if(createdMonth&&monthKey<createdMonth)continue;
-    state.fixedCostRecords.push({id:uid(),fixedCostId:fc.id,month:monthKey,amount:fc.amount,status:'pending',paidAt:null});
-    changed=true;
-  }
-  if(changed)saveFR();
+// Supabase remote ops — todas incluyen user_id
+async function remoteInsertTx(tx){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('transactions').insert({id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,note:tx.note,user_id:state.user.id});
+  if(error)throw error;
+}
+async function remoteDeleteTx(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('transactions').delete().eq('id',id);
+  if(error)throw error;
+}
+async function remoteUpsertCat(cat){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('categories').upsert({id:cat.id,name:cat.name,type:cat.type,icon:cat.icon,color:cat.color,user_id:state.user.id});
+  if(error)throw error;
+}
+async function remoteDeleteCat(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('categories').delete().eq('id',id);
+  if(error)throw error;
+}
+async function remoteMigrateCatTxs(fromId,toId){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('transactions').update({category_id:toId}).eq('category_id',fromId);
+  if(error)throw error;
 }
 
 // ------- HELPERS -------
 function getCategory(id){return state.categories.find(c=>c.id===id);}
-function getActualSpending(categoryId,monthKey){
-  return state.transactions.filter(t=>t.category_id===categoryId&&t.type==='expense'&&(t.date||'').slice(0,7)===monthKey).reduce((s,t)=>s+t.amount,0);
-}
-function totalsAll(){let i=0,e=0;for(const t of state.transactions){if(t.type==='income')i+=t.amount;else if(t.type==='expense')e+=t.amount;}return{income:i,expense:e,balance:i-e};}
-function totalsByMonth(mk){
-  let i=0,e=0;const byCat={};
-  for(const t of state.transactions){
-    if((t.date||'').slice(0,7)!==mk)continue;
-    if(t.type==='income')i+=t.amount;else e+=t.amount;
-    if(t.type==='expense')byCat[t.category_id]=(byCat[t.category_id]||0)+t.amount;
-  }
-  return{income:i,expense:e,balance:i-e,byCat};
-}
+function getActualSpending(catId,mk){return state.transactions.filter(t=>t.category_id===catId&&t.type==='expense'&&(t.date||'').slice(0,7)===mk).reduce((s,t)=>s+t.amount,0);}
+function totalsAll(){let i=0,e=0;for(const t of state.transactions){if(t.type==='income')i+=t.amount;else e+=t.amount;}return{income:i,expense:e,balance:i-e};}
+function totalsByMonth(mk){let i=0,e=0;const byCat={};for(const t of state.transactions){if((t.date||'').slice(0,7)!==mk)continue;if(t.type==='income')i+=t.amount;else e+=t.amount;if(t.type==='expense')byCat[t.category_id]=(byCat[t.category_id]||0)+t.amount;}return{income:i,expense:e,balance:i-e,byCat};}
 function debtTypeLabel(t){return{loan:'Préstamo',card:'Tarjeta',current_account:'Cta. cte.',other:'Otro'}[t]||t;}
 function rcvTypeLabel(t){return{loan:'Préstamo',current_account:'Cta. cte.',sale:'Venta',other:'Otro'}[t]||t;}
 function statusLabel(s){return{pending:'Pendiente',partial:'Parcial',paid:'Saldado',collected:'Cobrado'}[s]||s;}
@@ -505,10 +582,8 @@ function statusClass(s){return{pending:'badge-pending',partial:'badge-partial',p
 
 // ------- RENDER HEADER -------
 function renderHeader(){
-  const{balance}=totalsAll();
-  const el=document.getElementById('headerBalance');
-  el.textContent=fmtMoney(balance);
-  el.className='text-3xl font-semibold '+(balance<0?'text-expense':'text-text');
+  const{balance}=totalsAll();const el=document.getElementById('headerBalance');
+  el.textContent=fmtMoney(balance);el.className='text-3xl font-semibold '+(balance<0?'text-expense':'text-text');
 }
 
 // ------- TABS -------
@@ -518,8 +593,7 @@ function setTab(tab){
   renderCurrentTab();
 }
 function renderCurrentTab(){
-  renderHeader();
-  const page=document.getElementById('pageContent');page.innerHTML='';
+  renderHeader();const page=document.getElementById('pageContent');page.innerHTML='';
   if(state.tab==='home')page.appendChild(viewHome());
   if(state.tab==='dashboard')page.appendChild(viewDashboard());
   if(state.tab==='control')page.appendChild(viewControl());
@@ -533,10 +607,8 @@ function viewHome(){
   const mk=currentMonthKey();const{income,expense,balance}=totalsByMonth(mk);
   root.innerHTML=`
     <div class="grid grid-cols-2 gap-3 mt-2">
-      <button id="qaIncome" class="rounded-2xl bg-income/15 border border-income/40 text-income py-6 font-semibold text-lg flex flex-col items-center gap-1">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>+ INGRESO</button>
-      <button id="qaExpense" class="rounded-2xl bg-expense/15 border border-expense/40 text-expense py-6 font-semibold text-lg flex flex-col items-center gap-1">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/></svg>− EGRESO</button>
+      <button id="qaIncome" class="rounded-2xl bg-income/15 border border-income/40 text-income py-6 font-semibold text-lg flex flex-col items-center gap-1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>+ INGRESO</button>
+      <button id="qaExpense" class="rounded-2xl bg-expense/15 border border-expense/40 text-expense py-6 font-semibold text-lg flex flex-col items-center gap-1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/></svg>− EGRESO</button>
     </div>
     <div class="rounded-2xl bg-card border border-line p-4">
       <div class="flex items-center justify-between mb-3"><div class="text-sm text-muted uppercase tracking-wider">Este mes</div><div class="text-xs text-muted">${formatMonthLabel(mk)}</div></div>
@@ -552,7 +624,7 @@ function viewHome(){
     </div>`;
   const list=root.querySelector('#recentList');
   const recent=[...state.transactions].sort((a,b)=>(b.date+(b.created_at||'')).localeCompare(a.date+(a.created_at||''))).slice(0,12);
-  if(!recent.length)list.innerHTML=`<div class="text-center text-muted py-8">Sin movimientos aún.</div>`;
+  if(!recent.length)list.innerHTML=`<div class="text-center text-muted py-8">Sin movimientos. Presioná + INGRESO o − EGRESO para empezar.</div>`;
   else for(const tx of recent)list.appendChild(renderTxRow(tx));
   root.querySelector('#qaIncome').onclick=()=>openTxModal('income');
   root.querySelector('#qaExpense').onclick=()=>openTxModal('expense');
@@ -563,14 +635,8 @@ function renderTxRow(tx){
   const row=document.createElement('div');row.className='flex items-center gap-3 bg-card border border-line rounded-xl p-3';
   row.innerHTML=`
     <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" style="background:${cat.color}22;border:1px solid ${cat.color}66;">${cat.icon||'•'}</div>
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2"><span class="font-medium truncate">${cat.name}</span><span class="text-xs text-muted">${tx.date}</span></div>
-      <div class="text-xs text-muted truncate">${tx.note||'—'}</div>
-    </div>
-    <div class="text-right">
-      <div class="font-semibold ${tx.type==='income'?'text-income':'text-expense'}">${tx.type==='income'?'+':'−'}${fmtMoney(tx.amount)}</div>
-      <button class="text-xs text-muted hover:text-expense mt-1" data-del="${tx.id}">Eliminar</button>
-    </div>`;
+    <div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-medium truncate">${cat.name}</span><span class="text-xs text-muted">${tx.date}</span></div><div class="text-xs text-muted truncate">${tx.note||'—'}</div></div>
+    <div class="text-right"><div class="font-semibold ${tx.type==='income'?'text-income':'text-expense'}">${tx.type==='income'?'+':'−'}${fmtMoney(tx.amount)}</div><button class="text-xs text-muted hover:text-expense mt-1" data-del="${tx.id}">Eliminar</button></div>`;
   row.querySelector('[data-del]').onclick=async()=>{if(!confirm('¿Eliminar este movimiento?'))return;await deleteTransaction(tx.id);};
   return row;
 }
@@ -586,19 +652,12 @@ function viewDashboard(){
       <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted">Egresos</div><div class="text-expense font-semibold text-lg">${fmtMoney(expense)}</div></div>
       <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted">Balance</div><div class="font-semibold text-lg ${balance<0?'text-expense':'text-income'}">${fmtMoney(balance)}</div></div>
     </div>
-    <div class="rounded-2xl bg-card border border-line p-4">
-      <h3 class="font-semibold mb-2">Egresos por categoría</h3>
-      <div class="relative" style="height:260px;"><canvas id="pieChart"></canvas></div>
-      <div id="catLegend" class="mt-3 space-y-2"></div>
-    </div>
-    <div class="rounded-2xl bg-card border border-line p-4">
-      <h3 class="font-semibold mb-2">Total histórico</h3>
-      <div class="grid grid-cols-3 gap-2 text-center">
-        <div><div class="text-xs text-muted">Ingresos</div><div class="text-income font-semibold">${fmtMoney(totalsAll().income)}</div></div>
-        <div><div class="text-xs text-muted">Egresos</div><div class="text-expense font-semibold">${fmtMoney(totalsAll().expense)}</div></div>
-        <div><div class="text-xs text-muted">Balance</div><div class="font-semibold ${totalsAll().balance<0?'text-expense':'text-income'}">${fmtMoney(totalsAll().balance)}</div></div>
-      </div>
-    </div>`;
+    <div class="rounded-2xl bg-card border border-line p-4"><h3 class="font-semibold mb-2">Egresos por categoría</h3><div class="relative" style="height:260px;"><canvas id="pieChart"></canvas></div><div id="catLegend" class="mt-3 space-y-2"></div></div>
+    <div class="rounded-2xl bg-card border border-line p-4"><h3 class="font-semibold mb-2">Total histórico</h3><div class="grid grid-cols-3 gap-2 text-center">
+      <div><div class="text-xs text-muted">Ingresos</div><div class="text-income font-semibold">${fmtMoney(totalsAll().income)}</div></div>
+      <div><div class="text-xs text-muted">Egresos</div><div class="text-expense font-semibold">${fmtMoney(totalsAll().expense)}</div></div>
+      <div><div class="text-xs text-muted">Balance</div><div class="font-semibold ${totalsAll().balance<0?'text-expense':'text-income'}">${fmtMoney(totalsAll().balance)}</div></div>
+    </div></div>`;
   setTimeout(()=>renderPie(byCat,root.querySelector('#catLegend')),0);
   root.querySelector('#dashMonth').addEventListener('change',e=>{state.dashMonth=e.target.value||currentMonthKey();renderCurrentTab();});
   return root;
@@ -614,11 +673,20 @@ function renderPie(byCat,legendEl){
 }
 
 // ------- VIEW: CONTROL -------
+function ensureFixedRecords(mk){
+  const existing=new Set(state.fixedCostRecords.filter(r=>r.month===mk).map(r=>r.fixedCostId));
+  let changed=false;
+  for(const fc of state.fixedCosts){
+    if(!fc.active||existing.has(fc.id))continue;
+    const cm=(fc.createdAt||'').slice(0,7);if(cm&&mk<cm)continue;
+    state.fixedCostRecords.push({id:uid(),fixedCostId:fc.id,month:mk,amount:fc.amount,status:'pending',paidAt:null});
+    changed=true;
+  }
+  if(changed)saveFR();
+}
 function viewControl(){
   ensureFixedRecords(state.controlMonth);
   const root=document.createElement('div');root.className='fade-in space-y-4';
-
-  // Header: month nav + add button
   const hdr=document.createElement('div');hdr.className='flex items-center justify-between';
   hdr.innerHTML=`
     <div class="flex items-center gap-1">
@@ -628,118 +696,77 @@ function viewControl(){
     </div>
     <button id="ctrlAddNew" class="px-3 py-2 rounded-lg bg-brand text-sm font-medium">+ Nuevo</button>`;
   root.appendChild(hdr);
-
-  // Summary cards
   root.appendChild(buildControlSummary());
-
-  // 4 sections — tablet: 2 columns
   const grid=document.createElement('div');grid.className='ctrl-2col space-y-4';
   const left=document.createElement('div');left.className='space-y-4';
   const right=document.createElement('div');right.className='space-y-4';
-  left.appendChild(buildFixedSection());
-  left.appendChild(buildVariableSection());
-  right.appendChild(buildDebtSection());
-  right.appendChild(buildReceivableSection());
-  grid.appendChild(left);grid.appendChild(right);
-  root.appendChild(grid);
-
-  hdr.querySelector('#ctrlPrev').onclick=()=>{
-    const[y,m]=state.controlMonth.split('-').map(Number);
-    state.controlMonth=currentMonthKey(new Date(y,m-2,1));
-    renderCurrentTab();
-  };
-  hdr.querySelector('#ctrlNext').onclick=()=>{
-    const[y,m]=state.controlMonth.split('-').map(Number);
-    state.controlMonth=currentMonthKey(new Date(y,m,1));
-    renderCurrentTab();
-  };
+  left.appendChild(buildFixedSection());left.appendChild(buildVariableSection());
+  right.appendChild(buildDebtSection());right.appendChild(buildReceivableSection());
+  grid.appendChild(left);grid.appendChild(right);root.appendChild(grid);
+  hdr.querySelector('#ctrlPrev').onclick=()=>{const[y,m]=state.controlMonth.split('-').map(Number);state.controlMonth=currentMonthKey(new Date(y,m-2,1));renderCurrentTab();};
+  hdr.querySelector('#ctrlNext').onclick=()=>{const[y,m]=state.controlMonth.split('-').map(Number);state.controlMonth=currentMonthKey(new Date(y,m,1));renderCurrentTab();};
   hdr.querySelector('#ctrlAddNew').onclick=openItemSelector;
   return root;
 }
-
 function buildControlSummary(){
   const mk=state.controlMonth;
-  const records=state.fixedCostRecords.filter(r=>r.month===mk);
-  const fixedTotal=records.reduce((s,r)=>s+r.amount,0);
-  const fixedPending=records.filter(r=>r.status==='pending').reduce((s,r)=>s+r.amount,0);
-  const budgets=state.variableBudgets.filter(b=>b.month===mk);
-  const varSpent=budgets.reduce((s,b)=>s+getActualSpending(b.categoryId,mk),0);
-  const varBudgeted=budgets.reduce((s,b)=>s+b.budgeted,0);
-  const debtPending=state.debts.filter(d=>d.status!=='paid').reduce((s,d)=>s+(d.totalAmount-d.paidAmount),0);
-  const recvPending=state.receivables.filter(r=>r.status!=='collected').reduce((s,r)=>s+(r.totalAmount-r.collectedAmount),0);
-
-  const wrap=document.createElement('div');
-  wrap.className='grid grid-cols-2 gap-2 ctrl-grid-4';
+  const recs=state.fixedCostRecords.filter(r=>r.month===mk);
+  const fixedTotal=recs.reduce((s,r)=>s+r.amount,0);
+  const fixedPending=recs.filter(r=>r.status==='pending').reduce((s,r)=>s+r.amount,0);
+  const buds=state.variableBudgets.filter(b=>b.month===mk);
+  const varSpent=buds.reduce((s,b)=>s+getActualSpending(b.categoryId,mk),0);
+  const varBudgeted=buds.reduce((s,b)=>s+b.budgeted,0);
+  const debtP=state.debts.filter(d=>d.status!=='paid').reduce((s,d)=>s+(d.totalAmount-d.paidAmount),0);
+  const recvP=state.receivables.filter(r=>r.status!=='collected').reduce((s,r)=>s+(r.totalAmount-r.collectedAmount),0);
+  const wrap=document.createElement('div');wrap.className='grid grid-cols-2 gap-2 ctrl-grid-4';
   wrap.innerHTML=`
-    <div class="rounded-xl bg-card border border-line p-3">
-      <div class="text-xs text-muted mb-1">Fijos del mes</div>
-      <div class="font-semibold">${fmtMoney(fixedTotal)}</div>
-      <div class="text-xs mt-1 ${fixedPending>0?'text-yellow-400':'text-income'}">${fixedPending>0?fmtMoney(fixedPending)+' pendiente':'Todo pagado'}</div>
-    </div>
-    <div class="rounded-xl bg-card border border-line p-3">
-      <div class="text-xs text-muted mb-1">Variables del mes</div>
-      <div class="font-semibold">${fmtMoney(varSpent)}</div>
-      <div class="text-xs text-muted mt-1">de ${fmtMoney(varBudgeted)} presup.</div>
-    </div>
-    <div class="rounded-xl bg-card border border-line p-3">
-      <div class="text-xs text-muted mb-1">Debo</div>
-      <div class="font-semibold ${debtPending>0?'text-expense':''}">${fmtMoney(debtPending)}</div>
-      <div class="text-xs text-muted mt-1">${state.debts.filter(d=>d.status!=='paid').length} deuda(s)</div>
-    </div>
-    <div class="rounded-xl bg-card border border-line p-3">
-      <div class="text-xs text-muted mb-1">Me deben</div>
-      <div class="font-semibold ${recvPending>0?'text-income':''}">${fmtMoney(recvPending)}</div>
-      <div class="text-xs text-muted mt-1">${state.receivables.filter(r=>r.status!=='collected').length} pendiente(s)</div>
-    </div>`;
+    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Fijos del mes</div><div class="font-semibold">${fmtMoney(fixedTotal)}</div><div class="text-xs mt-1 ${fixedPending>0?'text-yellow-400':'text-income'}">${fixedPending>0?fmtMoney(fixedPending)+' pendiente':'Todo pagado'}</div></div>
+    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Variables del mes</div><div class="font-semibold">${fmtMoney(varSpent)}</div><div class="text-xs text-muted mt-1">de ${fmtMoney(varBudgeted)} presup.</div></div>
+    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Debo</div><div class="font-semibold ${debtP>0?'text-expense':''}">${fmtMoney(debtP)}</div><div class="text-xs text-muted mt-1">${state.debts.filter(d=>d.status!=='paid').length} deuda(s)</div></div>
+    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Me deben</div><div class="font-semibold ${recvP>0?'text-income':''}">${fmtMoney(recvP)}</div><div class="text-xs text-muted mt-1">${state.receivables.filter(r=>r.status!=='collected').length} pendiente(s)</div></div>`;
   return wrap;
 }
 
-// --- FIXED SECTION ---
+// Control section builder
+function buildCtrlSection(key,title,count,fillBody){
+  const open=state.ctrlSections[key]!==false;
+  const section=document.createElement('div');section.className='ctrl-section';
+  const header=document.createElement('button');header.className='ctrl-sec-header';
+  header.innerHTML=`<div class="flex items-center gap-2"><span class="font-semibold text-sm">${title}</span>${count>0?`<span class="text-xs bg-line text-muted px-2 py-0.5 rounded-full">${count}</span>`:''}</div><svg class="chevron transition-transform duration-200 ${open?'':'rotate-180'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>`;
+  const body=document.createElement('div');body.className=`ctrl-sec-body${open?'':' hidden'}`;
+  fillBody(body);
+  header.onclick=()=>{const isOpen=!body.classList.contains('hidden');body.classList.toggle('hidden',isOpen);header.querySelector('.chevron').classList.toggle('rotate-180',isOpen);state.ctrlSections[key]=!isOpen;};
+  section.appendChild(header);section.appendChild(body);return section;
+}
+const ICON_EDIT=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const ICON_DEL=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+
 function buildFixedSection(){
-  const mk=state.controlMonth;
-  const records=state.fixedCostRecords.filter(r=>r.month===mk);
-  return buildCtrlSection('fixed','🔁 Fijos',records.length,state.ctrlSections.fixed,body=>{
-    if(!records.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin gastos fijos. Usá + Nuevo para agregar.</div>';return;}
-    for(const rec of records){
-      const fc=state.fixedCosts.find(f=>f.id===rec.fixedCostId);
-      if(fc)body.appendChild(buildFixedItem(rec,fc));
-    }
+  const mk=state.controlMonth;const recs=state.fixedCostRecords.filter(r=>r.month===mk);
+  return buildCtrlSection('fixed','🔁 Fijos',recs.length,body=>{
+    if(!recs.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin gastos fijos. Usá + Nuevo.</div>';return;}
+    for(const rec of recs){const fc=state.fixedCosts.find(f=>f.id===rec.fixedCostId);if(fc)body.appendChild(buildFixedItem(rec,fc));}
   });
 }
 function buildFixedItem(rec,fc){
   const paid=rec.status==='paid';
   const el=document.createElement('div');el.className='ctrl-item';
   el.innerHTML=`
-    <button class="toggle-paid ${paid?'paid':''}" title="${paid?'Marcar pendiente':'Marcar pagado'}">
-      ${paid?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`:''}
-    </button>
-    <div class="flex-1 min-w-0">
-      <div class="text-sm font-medium ${paid?'line-through text-muted':''}">${fc.icon||'🔁'} ${fc.name}</div>
-      <div class="text-xs text-muted">Vence día ${fc.dueDay}${fc.active?'':' · inactivo'}</div>
-    </div>
-    <span class="font-semibold text-sm ${paid?'text-muted':'text-text'} mr-1">${fmtMoney(rec.amount)}</span>
-    <button class="ctrl-iconbtn edit-btn" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-    <button class="ctrl-iconbtn del del-btn" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`;
-  el.querySelector('.toggle-paid').onclick=()=>{
-    rec.status=paid?'pending':'paid';rec.paidAt=rec.status==='paid'?new Date().toISOString():null;
-    saveFR();renderCurrentTab();
-  };
+    <button class="toggle-paid ${paid?'paid':''}" title="${paid?'Marcar pendiente':'Marcar pagado'}">${paid?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`:''}</button>
+    <div class="flex-1 min-w-0"><div class="text-sm font-medium ${paid?'line-through text-muted':''}">${fc.icon||'🔁'} ${fc.name}</div><div class="text-xs text-muted">Vence día ${fc.dueDay}</div></div>
+    <span class="font-semibold text-sm ${paid?'text-muted':''} mr-1">${fmtMoney(rec.amount)}</span>
+    <button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button>
+    <button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button>`;
+  el.querySelector('.toggle-paid').onclick=()=>{rec.status=paid?'pending':'paid';rec.paidAt=rec.status==='paid'?new Date().toISOString():null;saveFR();renderCurrentTab();};
   el.querySelector('.edit-btn').onclick=()=>openFixedModal(fc);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar gasto fijo',message:`¿Eliminar "${fc.name}"? Se borrarán todos sus registros mensuales.`,onConfirm:()=>{
-    state.fixedCostRecords=state.fixedCostRecords.filter(r=>r.fixedCostId!==fc.id);
-    state.fixedCosts=state.fixedCosts.filter(f=>f.id!==fc.id);
-    saveFR();saveFC();renderCurrentTab();showToast('Gasto fijo eliminado');
-  }});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar gasto fijo',message:`¿Eliminar "${fc.name}"? Se borrarán todos sus registros.`,onConfirm:()=>{state.fixedCostRecords=state.fixedCostRecords.filter(r=>r.fixedCostId!==fc.id);state.fixedCosts=state.fixedCosts.filter(f=>f.id!==fc.id);saveFR();saveFC();renderCurrentTab();showToast('Gasto fijo eliminado');}});
   return el;
 }
-
-// --- VARIABLE SECTION ---
 function buildVariableSection(){
-  const mk=state.controlMonth;
-  const budgets=state.variableBudgets.filter(b=>b.month===mk);
-  return buildCtrlSection('variable','📊 Presupuestos',budgets.length,state.ctrlSections.variable,body=>{
-    if(!budgets.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin presupuestos variables. Usá + Nuevo.</div>';return;}
-    for(const b of budgets)body.appendChild(buildVariableItem(b,mk));
+  const mk=state.controlMonth;const buds=state.variableBudgets.filter(b=>b.month===mk);
+  return buildCtrlSection('variable','📊 Presupuestos',buds.length,body=>{
+    if(!buds.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin presupuestos. Usá + Nuevo.</div>';return;}
+    for(const b of buds)body.appendChild(buildVariableItem(b,mk));
   });
 }
 function buildVariableItem(b,mk){
@@ -747,29 +774,20 @@ function buildVariableItem(b,mk){
   const spent=getActualSpending(b.categoryId,mk);
   const pct=b.budgeted>0?Math.min((spent/b.budgeted)*100,100):0;
   const over=spent>b.budgeted;
-  const remaining=b.budgeted-spent;
   const el=document.createElement('div');el.className='ctrl-item flex-col items-start gap-1';
   el.innerHTML=`
     <div class="flex items-center justify-between w-full">
       <div class="flex items-center gap-2"><span class="text-lg">${cat.icon}</span><span class="text-sm font-medium">${cat.name}</span></div>
-      <div class="flex items-center gap-1">
-        <span class="text-sm font-semibold ${over?'text-expense':''}">${fmtMoney(spent)}<span class="text-muted font-normal"> / ${fmtMoney(b.budgeted)}</span></span>
-        <button class="ctrl-iconbtn edit-btn" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="ctrl-iconbtn del del-btn" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
-      </div>
+      <div class="flex items-center gap-1"><span class="text-sm font-semibold ${over?'text-expense':''}">${fmtMoney(spent)}<span class="text-muted font-normal"> / ${fmtMoney(b.budgeted)}</span></span><button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button><button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button></div>
     </div>
     <div class="ctrl-prog-track w-full"><div class="ctrl-prog-fill" style="width:${pct}%;background:${over?'#ef4444':cat.color}"></div></div>
-    <div class="text-xs ${over?'text-expense':'text-muted'}">${over?'Excedido en '+fmtMoney(Math.abs(remaining)):'Restante: '+fmtMoney(remaining)}</div>`;
+    <div class="text-xs ${over?'text-expense':'text-muted'}">${over?'Excedido en '+fmtMoney(Math.abs(b.budgeted-spent)):'Restante: '+fmtMoney(b.budgeted-spent)}</div>`;
   el.querySelector('.edit-btn').onclick=()=>openVariableModal(b);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar presupuesto',message:`¿Eliminar el presupuesto de "${cat.name}" para este mes?`,onConfirm:()=>{
-    state.variableBudgets=state.variableBudgets.filter(x=>x.id!==b.id);saveVB();renderCurrentTab();showToast('Presupuesto eliminado');
-  }});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar presupuesto',message:`¿Eliminar el presupuesto de "${cat.name}"?`,onConfirm:()=>{state.variableBudgets=state.variableBudgets.filter(x=>x.id!==b.id);saveVB();renderCurrentTab();showToast('Presupuesto eliminado');}});
   return el;
 }
-
-// --- DEBT SECTION ---
 function buildDebtSection(){
-  return buildCtrlSection('debt','💳 Deudas',state.debts.length,state.ctrlSections.debt,body=>{
+  return buildCtrlSection('debt','💳 Deudas',state.debts.length,body=>{
     if(!state.debts.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin deudas registradas.</div>';return;}
     for(const d of state.debts)body.appendChild(buildDebtItem(d));
   });
@@ -779,32 +797,21 @@ function buildDebtItem(d){
   const el=document.createElement('div');el.className='ctrl-item flex-col items-start gap-1.5';
   el.innerHTML=`
     <div class="flex items-center justify-between w-full">
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium truncate">${d.name}</div>
-        <div class="text-xs text-muted truncate">${d.concept||'—'} · <span class="text-muted">${debtTypeLabel(d.type)}</span></div>
-      </div>
-      <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-        <span class="ctrl-badge ${statusClass(d.status)}">${statusLabel(d.status)}</span>
-        <button class="ctrl-iconbtn edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="ctrl-iconbtn del del-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
-      </div>
+      <div class="flex-1 min-w-0"><div class="text-sm font-medium truncate">${d.name}</div><div class="text-xs text-muted">${d.concept||'—'} · ${debtTypeLabel(d.type)}</div></div>
+      <div class="flex items-center gap-1 ml-2 flex-shrink-0"><span class="ctrl-badge ${statusClass(d.status)}">${statusLabel(d.status)}</span><button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button><button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button></div>
     </div>
-    <div class="flex gap-3 text-xs text-muted w-full flex-wrap">
+    <div class="flex gap-3 text-xs text-muted flex-wrap">
       <span>Total: <strong class="text-text">${fmtMoney(d.totalAmount)}</strong></span>
       <span>Pagado: <strong class="text-income">${fmtMoney(d.paidAmount)}</strong></span>
       <span>Pendiente: <strong class="text-expense">${fmtMoney(pending)}</strong></span>
       ${d.dueDate?`<span>Vence: ${d.dueDate}</span>`:''}
     </div>`;
   el.querySelector('.edit-btn').onclick=()=>openDebtModal(d);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar deuda',message:`¿Eliminar la deuda con "${d.name}"?`,onConfirm:()=>{
-    state.debts=state.debts.filter(x=>x.id!==d.id);saveDB();renderCurrentTab();showToast('Deuda eliminada');
-  }});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar deuda',message:`¿Eliminar la deuda con "${d.name}"?`,onConfirm:()=>{state.debts=state.debts.filter(x=>x.id!==d.id);saveDB();renderCurrentTab();showToast('Deuda eliminada');}});
   return el;
 }
-
-// --- RECEIVABLE SECTION ---
 function buildReceivableSection(){
-  return buildCtrlSection('recv','🤝 Por cobrar',state.receivables.length,state.ctrlSections.recv,body=>{
+  return buildCtrlSection('recv','🤝 Por cobrar',state.receivables.length,body=>{
     if(!state.receivables.length){body.innerHTML='<div class="p-4 text-sm text-muted text-center">Sin cobros pendientes.</div>';return;}
     for(const r of state.receivables)body.appendChild(buildReceivableItem(r));
   });
@@ -814,95 +821,53 @@ function buildReceivableItem(r){
   const el=document.createElement('div');el.className='ctrl-item flex-col items-start gap-1.5';
   el.innerHTML=`
     <div class="flex items-center justify-between w-full">
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium truncate">${r.name}</div>
-        <div class="text-xs text-muted truncate">${r.concept||'—'} · ${rcvTypeLabel(r.type)}</div>
-      </div>
-      <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-        <span class="ctrl-badge ${statusClass(r.status)}">${statusLabel(r.status)}</span>
-        <button class="ctrl-iconbtn edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="ctrl-iconbtn del del-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
-      </div>
+      <div class="flex-1 min-w-0"><div class="text-sm font-medium truncate">${r.name}</div><div class="text-xs text-muted">${r.concept||'—'} · ${rcvTypeLabel(r.type)}</div></div>
+      <div class="flex items-center gap-1 ml-2 flex-shrink-0"><span class="ctrl-badge ${statusClass(r.status)}">${statusLabel(r.status)}</span><button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button><button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button></div>
     </div>
-    <div class="flex gap-3 text-xs text-muted w-full flex-wrap">
+    <div class="flex gap-3 text-xs text-muted flex-wrap">
       <span>Total: <strong class="text-text">${fmtMoney(r.totalAmount)}</strong></span>
       <span>Cobrado: <strong class="text-income">${fmtMoney(r.collectedAmount)}</strong></span>
       <span>Pendiente: <strong class="text-income">${fmtMoney(pending)}</strong></span>
       ${r.expectedDate?`<span>Fecha est.: ${r.expectedDate}</span>`:''}
     </div>`;
   el.querySelector('.edit-btn').onclick=()=>openReceivableModal(r);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar cobro',message:`¿Eliminar el cobro de "${r.name}"?`,onConfirm:()=>{
-    state.receivables=state.receivables.filter(x=>x.id!==r.id);saveRCV();renderCurrentTab();showToast('Cobro eliminado');
-  }});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar cobro',message:`¿Eliminar el cobro de "${r.name}"?`,onConfirm:()=>{state.receivables=state.receivables.filter(x=>x.id!==r.id);saveRCV();renderCurrentTab();showToast('Cobro eliminado');}});
   return el;
-}
-
-// --- SECTION BUILDER HELPER ---
-function buildCtrlSection(key,title,count,openInit,fillBody){
-  const open=state.ctrlSections[key]!==false;
-  const section=document.createElement('div');section.className='ctrl-section';
-  const header=document.createElement('button');header.className='ctrl-sec-header';
-  header.innerHTML=`
-    <div class="flex items-center gap-2">
-      <span class="font-semibold text-sm">${title}</span>
-      ${count>0?`<span class="text-xs bg-line text-muted px-2 py-0.5 rounded-full">${count}</span>`:''}
-    </div>
-    <svg class="chevron transition-transform duration-200 ${open?'':'rotate-180'}" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>`;
-  const body=document.createElement('div');body.className=`ctrl-sec-body${open?'':' hidden'}`;
-  fillBody(body);
-  header.onclick=()=>{
-    const isOpen=!body.classList.contains('hidden');
-    body.classList.toggle('hidden',isOpen);
-    header.querySelector('.chevron').classList.toggle('rotate-180',isOpen);
-    state.ctrlSections[key]=!isOpen;
-  };
-  section.appendChild(header);section.appendChild(body);
-  return section;
 }
 
 // ------- VIEW: CATEGORIES -------
 function viewCategories(){
   const root=document.createElement('div');root.className='fade-in space-y-4';
-  root.innerHTML=`
-    <div class="flex items-center justify-between">
-      <h2 class="font-semibold text-lg">Categorías</h2>
-      <button id="catAdd" class="px-3 py-2 rounded-lg bg-brand text-sm font-medium">+ Nueva</button>
-    </div>
-    <div><h3 class="text-income text-sm uppercase tracking-wider mb-2">Ingresos</h3><div id="catIncomeList" class="grid grid-cols-2 gap-2"></div></div>
-    <div><h3 class="text-expense text-sm uppercase tracking-wider mb-2">Egresos</h3><div id="catExpenseList" class="grid grid-cols-2 gap-2"></div></div>`;
+  root.innerHTML=`<div class="flex items-center justify-between"><h2 class="font-semibold text-lg">Categorías</h2><button id="catAdd" class="px-3 py-2 rounded-lg bg-brand text-sm font-medium">+ Nueva</button></div><div><h3 class="text-income text-sm uppercase tracking-wider mb-2">Ingresos</h3><div id="catIncomeList" class="grid grid-cols-2 gap-2"></div></div><div><h3 class="text-expense text-sm uppercase tracking-wider mb-2">Egresos</h3><div id="catExpenseList" class="grid grid-cols-2 gap-2"></div></div>`;
   const inc=root.querySelector('#catIncomeList'),exp=root.querySelector('#catExpenseList');
   for(const c of state.categories)(c.type==='income'?inc:exp).appendChild(buildCatCard(c));
   root.querySelector('#catAdd').onclick=()=>openCatModal(null);
   return root;
 }
 function buildCatCard(c){
-  const isSys=isSystemCategory(c);
-  const wrap=document.createElement('div');wrap.className='cat-card';
-  const mainBtn=document.createElement('button');
-  mainBtn.className='w-full flex items-center gap-2 p-3 pr-8 text-left rounded-xl';
+  const isSys=isSystemCategory(c);const wrap=document.createElement('div');wrap.className='cat-card';
+  const mainBtn=document.createElement('button');mainBtn.className='w-full flex items-center gap-2 p-3 pr-8 text-left rounded-xl';
   mainBtn.innerHTML=`<span class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-lg" style="background:${c.color}22;border:1px solid ${c.color}66;">${c.icon||'•'}</span><span class="truncate text-sm font-medium">${c.name}</span>`;
   mainBtn.onclick=e=>{e.stopPropagation();closeCatMenus();openCatModal(c);};
   const menuBtn=document.createElement('button');menuBtn.className='cat-menu-btn';
   menuBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>`;
   const dropdown=document.createElement('div');dropdown.className='cat-dropdown hidden';
   const editItem=document.createElement('button');editItem.className='cat-drop-item';
-  editItem.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editar`;
-  editItem.onclick=e=>{e.stopPropagation();closeCatMenus();openCatModal(c);};
+  editItem.innerHTML=`${ICON_EDIT}Editar`;editItem.onclick=e=>{e.stopPropagation();closeCatMenus();openCatModal(c);};
   const divider=document.createElement('div');divider.className='cat-drop-divider';
   const delItem=document.createElement('button');
   if(isSys){
     delItem.className='cat-drop-item disabled';
-    delItem.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Protegida`;
-    delItem.onclick=e=>{e.stopPropagation();closeCatMenus();showToast('Esta categoría es del sistema y no puede eliminarse');};
+    delItem.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Protegida`;
+    delItem.onclick=e=>{e.stopPropagation();closeCatMenus();showToast('Categoría del sistema, no eliminable');};
   }else{
     delItem.className='cat-drop-item danger';
-    delItem.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Eliminar`;
+    delItem.innerHTML=`${ICON_DEL}Eliminar`;
     delItem.onclick=e=>{e.stopPropagation();closeCatMenus();confirmDeleteCategory(c);};
   }
   dropdown.appendChild(editItem);dropdown.appendChild(divider);dropdown.appendChild(delItem);
   menuBtn.onclick=e=>{e.stopPropagation();const isOpen=!dropdown.classList.contains('hidden');closeCatMenus();if(!isOpen)dropdown.classList.remove('hidden');};
-  wrap.appendChild(mainBtn);wrap.appendChild(menuBtn);wrap.appendChild(dropdown);
-  return wrap;
+  wrap.appendChild(mainBtn);wrap.appendChild(menuBtn);wrap.appendChild(dropdown);return wrap;
 }
 function closeCatMenus(){document.querySelectorAll('.cat-dropdown').forEach(d=>d.classList.add('hidden'));}
 
@@ -910,58 +875,55 @@ function closeCatMenus(){document.querySelectorAll('.cat-dropdown').forEach(d=>d
 function viewSettings(){
   const root=document.createElement('div');root.className='fade-in space-y-4';
   const s=state.settings;
+  // Bloque de cuenta (solo si hay usuario autenticado)
+  const accountBlock=state.user?`
+    <div class="rounded-2xl bg-card border border-line p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold text-sm">Cuenta</div>
+          <div class="text-xs text-muted mt-0.5">${state.user.email}</div>
+        </div>
+        <button id="btnSignOut" class="px-4 py-2 rounded-lg bg-expense/20 text-expense text-sm font-medium">Cerrar sesión</button>
+      </div>
+    </div>`:'';
   root.innerHTML=`
     <h2 class="font-semibold text-lg">Ajustes</h2>
+    ${accountBlock}
     <div class="rounded-2xl bg-card border border-line p-4 space-y-3">
-      <h3 class="font-semibold">Sincronización con Supabase</h3>
-      <p class="text-sm text-muted">Credenciales para guardar en la nube. Sin ellas, la app funciona en modo local.</p>
+      <h3 class="font-semibold">Conexión Supabase</h3>
+      <p class="text-sm text-muted">Las credenciales ya están guardadas. Podés actualizarlas si es necesario.</p>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">URL del proyecto</span><input id="sbUrl" type="text" class="w-full" value="${s.supabaseUrl}" placeholder="https://xxxxx.supabase.co" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Anon key (public)</span><input id="sbKey" type="password" class="w-full" value="${s.supabaseKey}" placeholder="eyJhbGciOi..." /></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Anon key</span><input id="sbKey" type="password" class="w-full" value="${s.supabaseKey}" placeholder="eyJhbGciOi..." /></label>
       <div class="flex gap-2">
-        <button id="sbSave" class="px-4 py-2 rounded-lg bg-brand font-medium">Guardar y conectar</button>
-        <button id="sbSync" class="px-4 py-2 rounded-lg bg-card border border-line">Sincronizar ahora</button>
+        <button id="sbSave" class="px-4 py-2 rounded-lg bg-brand font-medium text-sm">Guardar</button>
+        <button id="sbSync" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Sincronizar</button>
       </div>
     </div>
     <div class="rounded-2xl bg-card border border-line p-4 space-y-3">
       <h3 class="font-semibold">Datos</h3>
       <div class="flex gap-2 flex-wrap">
-        <button id="btnExport" class="px-4 py-2 rounded-lg bg-card border border-line">Exportar JSON</button>
-        <button id="btnImport" class="px-4 py-2 rounded-lg bg-card border border-line">Importar JSON</button>
+        <button id="btnExport" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Exportar JSON</button>
+        <button id="btnImport" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Importar JSON</button>
         <input id="fileImport" type="file" accept="application/json" class="hidden" />
-        <button id="btnWipe" class="px-4 py-2 rounded-lg bg-expense/20 text-expense">Borrar todo (local)</button>
       </div>
-    </div>
-    <div class="rounded-2xl bg-card border border-line p-4 space-y-2 text-sm">
-      <h3 class="font-semibold">Esquema SQL para Supabase</h3>
-      <p class="text-muted text-xs">Ejecutá este script una sola vez en el Editor SQL de Supabase:</p>
-      <pre id="sqlSchema" class="text-xs bg-bg border border-line rounded-lg p-3 overflow-auto whitespace-pre max-h-48"></pre>
-      <button id="btnCopySQL" class="px-3 py-2 rounded-lg bg-card border border-line text-xs">Copiar SQL</button>
     </div>`;
-  root.querySelector('#sqlSchema').textContent=SQL_SCHEMA;
+  if(state.user)root.querySelector('#btnSignOut').onclick=doSignOut;
   root.querySelector('#sbSave').onclick=()=>{
     state.settings.supabaseUrl=root.querySelector('#sbUrl').value.trim();
     state.settings.supabaseKey=root.querySelector('#sbKey').value.trim();
-    saveLocalSettings();
-    if(initSupabase()){syncFromSupabase();showToast('Conectado. Sincronizando…');}
-    else{setSyncStatus('local');showToast('Credenciales vacías — modo local');}
+    saveLocalSettings();showToast('Credenciales guardadas. Recargá la página para reconectar.');
   };
-  root.querySelector('#sbSync').onclick=async()=>{if(!state.supabase){showToast('Primero guardá las credenciales');return;}await syncFromSupabase();};
+  root.querySelector('#sbSync').onclick=async()=>{if(!state.supabase||!state.user){showToast('No estás conectado');return;}await syncFromSupabase();};
   root.querySelector('#btnExport').onclick=exportJson;
   root.querySelector('#btnImport').onclick=()=>root.querySelector('#fileImport').click();
   root.querySelector('#fileImport').onchange=e=>{
     const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(obj.categories){state.categories=obj.categories;saveLocalCats();}if(obj.transactions){state.transactions=obj.transactions;saveLocalTxs();}showToast('Datos importados');renderCurrentTab();}catch{showToast('Archivo JSON inválido');}};r.readAsText(f);
+    const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(obj.categories){state.categories=obj.categories;}if(obj.transactions){state.transactions=obj.transactions;}showToast('Datos importados');renderCurrentTab();}catch{showToast('Archivo JSON inválido');}};r.readAsText(f);
   };
-  root.querySelector('#btnWipe').onclick=()=>{
-    if(!confirm('Borrar datos locales (no toca Supabase). ¿Seguir?'))return;
-    [STORAGE_KEYS.txs,STORAGE_KEYS.cats].forEach(k=>localStorage.removeItem(k));
-    loadLocal();renderCurrentTab();showToast('Datos locales borrados');
-  };
-  root.querySelector('#btnCopySQL').onclick=async()=>{await navigator.clipboard.writeText(SQL_SCHEMA);showToast('SQL copiado');};
   return root;
 }
 function exportJson(){
-  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),categories:state.categories,transactions:state.transactions,fixedCosts:state.fixedCosts,fixedCostRecords:state.fixedCostRecords,variableBudgets:state.variableBudgets,debts:state.debts,receivables:state.receivables},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),categories:state.categories,transactions:state.transactions},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`finanzas-export-${todayIso()}.json`;a.click();
 }
 
@@ -981,11 +943,7 @@ function updateTxAmountDisplay(){
 function keypadPress(key){
   if(key==='back'){state.txAmountRaw=state.txAmountRaw.slice(0,-1);}
   else if(key===','){if(!state.txAmountRaw.includes(','))state.txAmountRaw=(state.txAmountRaw||'0')+',';}
-  else{
-    if(state.txAmountRaw.includes(',')){const dec=state.txAmountRaw.split(',')[1]||'';if(dec.length>=2)return;}
-    if(state.txAmountRaw==='0')state.txAmountRaw=key;else state.txAmountRaw+=key;
-    if(state.txAmountRaw.length>12)state.txAmountRaw=state.txAmountRaw.slice(0,12);
-  }
+  else{if(state.txAmountRaw.includes(',')){const dec=state.txAmountRaw.split(',')[1]||'';if(dec.length>=2)return;}if(state.txAmountRaw==='0')state.txAmountRaw=key;else state.txAmountRaw+=key;if(state.txAmountRaw.length>12)state.txAmountRaw=state.txAmountRaw.slice(0,12);}
   updateTxAmountDisplay();
 }
 function renderTxCategories(){
@@ -1002,21 +960,22 @@ async function saveTransaction(){
   if(!amount||amount<=0){showToast('Ingresá un monto');return;}
   if(!state.txCategoryId){showToast('Elegí una categoría');return;}
   const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,date:document.getElementById('txDate').value||todayIso(),note:document.getElementById('txNote').value.trim(),created_at:new Date().toISOString()};
-  state.transactions.unshift(tx);saveLocalTxs();
-  try{await remoteInsertTx(tx);}catch{showToast('Guardado local (sync falló)');}
+  state.transactions.unshift(tx);
+  try{await remoteInsertTx(tx);}catch{showToast('Guardado (sync falló)');}
   closeTxModal();renderCurrentTab();showToast(state.txType==='income'?'Ingreso agregado':'Egreso agregado');
 }
-async function deleteTransaction(id){state.transactions=state.transactions.filter(t=>t.id!==id);saveLocalTxs();try{await remoteDeleteTx(id);}catch{}renderCurrentTab();}
+async function deleteTransaction(id){
+  state.transactions=state.transactions.filter(t=>t.id!==id);
+  try{await remoteDeleteTx(id);}catch{}renderCurrentTab();
+}
 
 // ------- CATEGORY MODAL -------
 let catEditing=null;
 function openCatModal(cat){
   catEditing=cat||null;
   document.getElementById('catTitle').textContent=cat?'Editar categoría':'Nueva categoría';
-  document.getElementById('catName').value=cat?.name||'';
-  document.getElementById('catType').value=cat?.type||'expense';
-  document.getElementById('catIcon').value=cat?.icon||'💠';
-  document.getElementById('catColor').value=cat?.color||'#4f8cff';
+  document.getElementById('catName').value=cat?.name||'';document.getElementById('catType').value=cat?.type||'expense';
+  document.getElementById('catIcon').value=cat?.icon||'💠';document.getElementById('catColor').value=cat?.color||'#4f8cff';
   const m=document.getElementById('catModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeCatModal(){const m=document.getElementById('catModal');m.classList.add('hidden');m.classList.remove('flex');catEditing=null;}
@@ -1024,28 +983,28 @@ async function saveCategory(){
   const name=document.getElementById('catName').value.trim(),type=document.getElementById('catType').value,icon=document.getElementById('catIcon').value.trim()||'💠',color=document.getElementById('catColor').value;
   if(!name){showToast('Ingresá un nombre');return;}
   if(state.categories.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.type===type&&c.id!==catEditing?.id)){showToast(`Ya existe "${name}" en ese tipo`);return;}
-  if(catEditing){Object.assign(catEditing,{name,type,icon,color});saveLocalCats();try{await remoteUpsertCat(catEditing);}catch{}closeCatModal();renderCurrentTab();showToast('Categoría actualizada');}
-  else{const nc={id:uid(),name,type,icon,color};state.categories.push(nc);saveLocalCats();try{await remoteUpsertCat(nc);}catch{}closeCatModal();renderCurrentTab();showToast('Categoría creada');}
+  if(catEditing){Object.assign(catEditing,{name,type,icon,color});try{await remoteUpsertCat(catEditing);}catch{}closeCatModal();renderCurrentTab();showToast('Categoría actualizada');}
+  else{const nc={id:uid(),name,type,icon,color};state.categories.push(nc);try{await remoteUpsertCat(nc);}catch{}closeCatModal();renderCurrentTab();showToast('Categoría creada');}
 }
 function confirmDeleteCategory(cat){
-  if(isSystemCategory(cat)){showToast('Esta categoría es del sistema y no puede eliminarse');return;}
+  if(isSystemCategory(cat)){showToast('Categoría del sistema, no eliminable');return;}
   const used=state.transactions.filter(t=>t.category_id===cat.id).length;
-  const fallbackName=cat.type==='income'?'Otros Ing.':'Otros Eg.';
-  const fallback=state.categories.find(c=>c.name===fallbackName&&c.type===cat.type);
+  const fbName=cat.type==='income'?'Otros Ing.':'Otros Eg.';
+  const fb=state.categories.find(c=>c.name===fbName&&c.type===cat.type);
   let msg=`¿Eliminar "${cat.name}"?`;
-  if(used>0)msg+=fallback?` ${used} movimiento(s) se reasignarán a "${fallbackName}".`:` ${used} movimiento(s) quedarán sin categoría.`;
-  showConfirmModal({title:'Eliminar categoría',message:msg,onConfirm:()=>executeCategoryDelete(cat,fallback)});
+  if(used>0)msg+=fb?` ${used} movimiento(s) se moverán a "${fbName}".`:` ${used} movimiento(s) quedarán sin categoría.`;
+  showConfirmModal({title:'Eliminar categoría',message:msg,onConfirm:()=>executeCategoryDelete(cat,fb)});
 }
-async function executeCategoryDelete(cat,fallback){
-  if(fallback){for(const tx of state.transactions)if(tx.category_id===cat.id)tx.category_id=fallback.id;saveLocalTxs();try{await remoteMigrateCatTxs(cat.id,fallback.id);}catch{}}
-  state.categories=state.categories.filter(c=>c.id!==cat.id);saveLocalCats();try{await remoteDeleteCat(cat.id);}catch{}
-  renderCurrentTab();showToast(fallback?`Categoría eliminada. Movimientos → "${fallback.name}".`:'Categoría eliminada.');
+async function executeCategoryDelete(cat,fb){
+  if(fb){for(const tx of state.transactions)if(tx.category_id===cat.id)tx.category_id=fb.id;try{await remoteMigrateCatTxs(cat.id,fb.id);}catch{}}
+  state.categories=state.categories.filter(c=>c.id!==cat.id);
+  try{await remoteDeleteCat(cat.id);}catch{}
+  renderCurrentTab();showToast(fb?`Eliminada. Movimientos → "${fb.name}".`:'Categoría eliminada.');
 }
 
 // ------- CONFIRM MODAL -------
 function showConfirmModal({title,message,onConfirm}){
-  document.getElementById('confirmTitle').textContent=title;
-  document.getElementById('confirmMsg').textContent=message;
+  document.getElementById('confirmTitle').textContent=title;document.getElementById('confirmMsg').textContent=message;
   const m=document.getElementById('confirmModal');m.classList.remove('hidden');m.classList.add('flex');
   const oldOk=document.getElementById('confirmOk');const newOk=oldOk.cloneNode(true);oldOk.parentNode.replaceChild(newOk,oldOk);
   newOk.onclick=()=>{closeConfirmModal();onConfirm();};
@@ -1053,199 +1012,89 @@ function showConfirmModal({title,message,onConfirm}){
 }
 function closeConfirmModal(){const m=document.getElementById('confirmModal');m.classList.add('hidden');m.classList.remove('flex');}
 
-// ------- ITEM SELECTOR (CONTROL) -------
-function openItemSelector(){
-  const m=document.getElementById('selectorSheet');m.classList.remove('hidden');m.classList.add('flex');
-}
+// ------- CONTROL MODALS -------
+function openItemSelector(){const m=document.getElementById('selectorSheet');m.classList.remove('hidden');m.classList.add('flex');}
 function closeItemSelector(){const m=document.getElementById('selectorSheet');m.classList.add('hidden');m.classList.remove('flex');}
 
-// ------- FIXED COST MODAL -------
 let fixedEditing=null;
 function openFixedModal(fc=null){
-  fixedEditing=fc;
-  document.getElementById('fixedModalTitle').textContent=fc?'Editar gasto fijo':'Nuevo gasto fijo';
-  document.getElementById('fcName').value=fc?.name||'';
-  document.getElementById('fcAmount').value=fc?.amount||'';
-  document.getElementById('fcDueDay').value=fc?.dueDay||'';
-  document.getElementById('fcIcon').value=fc?.icon||'🔁';
-  document.getElementById('fcActive').checked=fc?.active!==false;
-  closeItemSelector();
+  fixedEditing=fc;document.getElementById('fixedModalTitle').textContent=fc?'Editar gasto fijo':'Nuevo gasto fijo';
+  document.getElementById('fcName').value=fc?.name||'';document.getElementById('fcAmount').value=fc?.amount||'';
+  document.getElementById('fcDueDay').value=fc?.dueDay||'';document.getElementById('fcIcon').value=fc?.icon||'🔁';
+  document.getElementById('fcActive').checked=fc?.active!==false;closeItemSelector();
   const m=document.getElementById('fixedModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeFixedModal(){const m=document.getElementById('fixedModal');m.classList.add('hidden');m.classList.remove('flex');fixedEditing=null;}
 function saveFixedCost(){
-  const name=document.getElementById('fcName').value.trim();
-  const amount=parseFloat(document.getElementById('fcAmount').value)||0;
-  const dueDay=parseInt(document.getElementById('fcDueDay').value)||1;
-  const icon=document.getElementById('fcIcon').value.trim()||'🔁';
-  const active=document.getElementById('fcActive').checked;
-  if(!name){showToast('Ingresá un nombre');return;}
-  if(amount<=0){showToast('Ingresá un monto válido');return;}
+  const name=document.getElementById('fcName').value.trim(),amount=parseFloat(document.getElementById('fcAmount').value)||0;
+  const dueDay=parseInt(document.getElementById('fcDueDay').value)||1,icon=document.getElementById('fcIcon').value.trim()||'🔁',active=document.getElementById('fcActive').checked;
+  if(!name){showToast('Ingresá un nombre');return;}if(amount<=0){showToast('Ingresá un monto válido');return;}
   if(fixedEditing){
-    const prev=fixedEditing.amount;
-    Object.assign(fixedEditing,{name,amount,dueDay,icon,active});
-    saveFC();
-    // If amount changed, update records for THIS month onwards (create new ones if amount changed)
-    if(prev!==amount){
-      const mk=state.controlMonth;
-      const rec=state.fixedCostRecords.find(r=>r.fixedCostId===fixedEditing.id&&r.month===mk);
-      if(rec&&rec.status==='pending')rec.amount=amount;
-      saveFR();
-    }
+    const prev=fixedEditing.amount;Object.assign(fixedEditing,{name,amount,dueDay,icon,active});saveFC();
+    if(prev!==amount){const rec=state.fixedCostRecords.find(r=>r.fixedCostId===fixedEditing.id&&r.month===state.controlMonth&&r.status==='pending');if(rec)rec.amount=amount;saveFR();}
     showToast('Gasto fijo actualizado');
   }else{
-    const fc={id:uid(),name,amount,dueDay,icon,active,createdAt:todayIso()};
-    state.fixedCosts.push(fc);saveFC();
-    // Auto-create record for current control month
-    ensureFixedRecords(state.controlMonth);
-    showToast('Gasto fijo creado');
+    const fc={id:uid(),name,amount,dueDay,icon,active,createdAt:todayIso()};state.fixedCosts.push(fc);saveFC();ensureFixedRecords(state.controlMonth);showToast('Gasto fijo creado');
   }
   closeFixedModal();renderCurrentTab();
 }
 
-// ------- VARIABLE BUDGET MODAL -------
 let variableEditing=null;
 function openVariableModal(vb=null){
-  variableEditing=vb;
-  document.getElementById('variableModalTitle').textContent=vb?'Editar presupuesto':'Nuevo presupuesto';
+  variableEditing=vb;document.getElementById('variableModalTitle').textContent=vb?'Editar presupuesto':'Nuevo presupuesto';
   document.getElementById('vbMonthLabel').textContent=formatMonthLabel(state.controlMonth);
-  // Populate category selector with expense categories
   const sel=document.getElementById('vbCategory');sel.innerHTML='';
-  for(const c of state.categories.filter(c=>c.type==='expense')){
-    const opt=document.createElement('option');opt.value=c.id;opt.textContent=`${c.icon||''} ${c.name}`;
-    if(vb&&vb.categoryId===c.id)opt.selected=true;
-    sel.appendChild(opt);
-  }
-  document.getElementById('vbAmount').value=vb?.budgeted||'';
-  closeItemSelector();
+  for(const c of state.categories.filter(c=>c.type==='expense')){const opt=document.createElement('option');opt.value=c.id;opt.textContent=`${c.icon||''} ${c.name}`;if(vb&&vb.categoryId===c.id)opt.selected=true;sel.appendChild(opt);}
+  document.getElementById('vbAmount').value=vb?.budgeted||'';closeItemSelector();
   const m=document.getElementById('variableModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeVariableModal(){const m=document.getElementById('variableModal');m.classList.add('hidden');m.classList.remove('flex');variableEditing=null;}
 function saveVariableBudget(){
-  const categoryId=document.getElementById('vbCategory').value;
-  const budgeted=parseFloat(document.getElementById('vbAmount').value)||0;
-  if(!categoryId){showToast('Seleccioná una categoría');return;}
-  if(budgeted<=0){showToast('Ingresá un monto válido');return;}
+  const catId=document.getElementById('vbCategory').value,budgeted=parseFloat(document.getElementById('vbAmount').value)||0;
+  if(!catId){showToast('Seleccioná una categoría');return;}if(budgeted<=0){showToast('Ingresá un monto válido');return;}
   const mk=state.controlMonth;
-  if(variableEditing){
-    Object.assign(variableEditing,{categoryId,budgeted});saveVB();showToast('Presupuesto actualizado');
-  }else{
-    const dup=state.variableBudgets.find(b=>b.categoryId===categoryId&&b.month===mk);
-    if(dup){showToast('Ya existe un presupuesto para esa categoría en este mes');return;}
-    state.variableBudgets.push({id:uid(),categoryId,month:mk,budgeted});saveVB();showToast('Presupuesto creado');
-  }
+  if(variableEditing){Object.assign(variableEditing,{categoryId:catId,budgeted});saveVB();showToast('Presupuesto actualizado');}
+  else{if(state.variableBudgets.find(b=>b.categoryId===catId&&b.month===mk)){showToast('Ya existe un presupuesto para esa categoría este mes');return;}state.variableBudgets.push({id:uid(),categoryId:catId,month:mk,budgeted});saveVB();showToast('Presupuesto creado');}
   closeVariableModal();renderCurrentTab();
 }
 
-// ------- DEBT MODAL -------
 let debtEditing=null;
 function openDebtModal(d=null){
-  debtEditing=d;
-  document.getElementById('debtModalTitle').textContent=d?'Editar deuda':'Nueva deuda';
-  document.getElementById('dbName').value=d?.name||'';
-  document.getElementById('dbConcept').value=d?.concept||'';
-  document.getElementById('dbTotal').value=d?.totalAmount||'';
-  document.getElementById('dbPaid').value=d?.paidAmount||0;
-  document.getElementById('dbDue').value=d?.dueDate||'';
-  document.getElementById('dbType').value=d?.type||'loan';
-  document.getElementById('dbStatus').value=d?.status||'pending';
-  closeItemSelector();
-  const m=document.getElementById('debtModal');m.classList.remove('hidden');m.classList.add('flex');
+  debtEditing=d;document.getElementById('debtModalTitle').textContent=d?'Editar deuda':'Nueva deuda';
+  document.getElementById('dbName').value=d?.name||'';document.getElementById('dbConcept').value=d?.concept||'';
+  document.getElementById('dbTotal').value=d?.totalAmount||'';document.getElementById('dbPaid').value=d?.paidAmount||0;
+  document.getElementById('dbDue').value=d?.dueDate||'';document.getElementById('dbType').value=d?.type||'loan';document.getElementById('dbStatus').value=d?.status||'pending';
+  closeItemSelector();const m=document.getElementById('debtModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeDebtModal(){const m=document.getElementById('debtModal');m.classList.add('hidden');m.classList.remove('flex');debtEditing=null;}
 function saveDebt(){
-  const name=document.getElementById('dbName').value.trim();
-  const concept=document.getElementById('dbConcept').value.trim();
-  const totalAmount=parseFloat(document.getElementById('dbTotal').value)||0;
-  const paidAmount=parseFloat(document.getElementById('dbPaid').value)||0;
-  const dueDate=document.getElementById('dbDue').value;
-  const type=document.getElementById('dbType').value;
-  const status=document.getElementById('dbStatus').value;
-  if(!name){showToast('Ingresá un nombre');return;}
-  if(totalAmount<=0){showToast('Ingresá un monto total válido');return;}
-  if(paidAmount>totalAmount){showToast('El monto pagado no puede superar el total');return;}
+  const name=document.getElementById('dbName').value.trim(),concept=document.getElementById('dbConcept').value.trim();
+  const totalAmount=parseFloat(document.getElementById('dbTotal').value)||0,paidAmount=parseFloat(document.getElementById('dbPaid').value)||0;
+  const dueDate=document.getElementById('dbDue').value,type=document.getElementById('dbType').value,status=document.getElementById('dbStatus').value;
+  if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(paidAmount>totalAmount){showToast('El monto pagado no puede superar el total');return;}
   if(debtEditing){Object.assign(debtEditing,{name,concept,totalAmount,paidAmount,dueDate,type,status});saveDB();showToast('Deuda actualizada');}
   else{state.debts.push({id:uid(),name,concept,totalAmount,paidAmount,dueDate,type,status});saveDB();showToast('Deuda registrada');}
   closeDebtModal();renderCurrentTab();
 }
 
-// ------- RECEIVABLE MODAL -------
 let rcvEditing=null;
 function openReceivableModal(r=null){
-  rcvEditing=r;
-  document.getElementById('rcvModalTitle').textContent=r?'Editar cobro':'Nuevo cobro pendiente';
-  document.getElementById('rcvName').value=r?.name||'';
-  document.getElementById('rcvConcept').value=r?.concept||'';
-  document.getElementById('rcvTotal').value=r?.totalAmount||'';
-  document.getElementById('rcvCollected').value=r?.collectedAmount||0;
-  document.getElementById('rcvDate').value=r?.expectedDate||'';
-  document.getElementById('rcvType').value=r?.type||'loan';
-  document.getElementById('rcvStatus').value=r?.status||'pending';
-  closeItemSelector();
-  const m=document.getElementById('rcvModal');m.classList.remove('hidden');m.classList.add('flex');
+  rcvEditing=r;document.getElementById('rcvModalTitle').textContent=r?'Editar cobro':'Nuevo cobro pendiente';
+  document.getElementById('rcvName').value=r?.name||'';document.getElementById('rcvConcept').value=r?.concept||'';
+  document.getElementById('rcvTotal').value=r?.totalAmount||'';document.getElementById('rcvCollected').value=r?.collectedAmount||0;
+  document.getElementById('rcvDate').value=r?.expectedDate||'';document.getElementById('rcvType').value=r?.type||'loan';document.getElementById('rcvStatus').value=r?.status||'pending';
+  closeItemSelector();const m=document.getElementById('rcvModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeReceivableModal(){const m=document.getElementById('rcvModal');m.classList.add('hidden');m.classList.remove('flex');rcvEditing=null;}
 function saveReceivable(){
-  const name=document.getElementById('rcvName').value.trim();
-  const concept=document.getElementById('rcvConcept').value.trim();
-  const totalAmount=parseFloat(document.getElementById('rcvTotal').value)||0;
-  const collectedAmount=parseFloat(document.getElementById('rcvCollected').value)||0;
-  const expectedDate=document.getElementById('rcvDate').value;
-  const type=document.getElementById('rcvType').value;
-  const status=document.getElementById('rcvStatus').value;
-  if(!name){showToast('Ingresá un nombre');return;}
-  if(totalAmount<=0){showToast('Ingresá un monto total válido');return;}
-  if(collectedAmount>totalAmount){showToast('El monto cobrado no puede superar el total');return;}
+  const name=document.getElementById('rcvName').value.trim(),concept=document.getElementById('rcvConcept').value.trim();
+  const totalAmount=parseFloat(document.getElementById('rcvTotal').value)||0,collectedAmount=parseFloat(document.getElementById('rcvCollected').value)||0;
+  const expectedDate=document.getElementById('rcvDate').value,type=document.getElementById('rcvType').value,status=document.getElementById('rcvStatus').value;
+  if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(collectedAmount>totalAmount){showToast('El monto cobrado no puede superar el total');return;}
   if(rcvEditing){Object.assign(rcvEditing,{name,concept,totalAmount,collectedAmount,expectedDate,type,status});saveRCV();showToast('Cobro actualizado');}
   else{state.receivables.push({id:uid(),name,concept,totalAmount,collectedAmount,expectedDate,type,status});saveRCV();showToast('Cobro registrado');}
   closeReceivableModal();renderCurrentTab();
 }
-
-// ------- SQL SCHEMA -------
-const SQL_SCHEMA=`-- FINANZAS: ejecutá este script en Supabase → SQL Editor (una sola vez)
-
-create extension if not exists "pgcrypto";
-
-create table if not exists public.categories (
-  id uuid primary key default gen_random_uuid(),
-  name text not null, type text not null check (type in ('income','expense')),
-  icon text, color text, created_at timestamptz default now()
-);
-create table if not exists public.transactions (
-  id uuid primary key default gen_random_uuid(),
-  amount numeric(14,2) not null, type text not null check (type in ('income','expense')),
-  category_id uuid references public.categories(id) on delete set null,
-  date date not null default current_date, note text, created_at timestamptz default now()
-);
-create index if not exists tx_date_idx on public.transactions(date desc);
-create index if not exists tx_cat_idx  on public.transactions(category_id);
-
--- Tablas del módulo Control (datos guardados en localStorage, no sincronizan aún)
--- create table if not exists public.fixed_costs (
---   id uuid primary key, name text, amount numeric(14,2), due_day int,
---   icon text, active boolean default true, created_at date, user_id uuid
--- );
--- create table if not exists public.fixed_cost_records (
---   id uuid primary key, fixed_cost_id uuid, month text, amount numeric(14,2),
---   status text default 'pending', paid_at timestamptz
--- );
--- create table if not exists public.variable_budgets (
---   id uuid primary key, category_id uuid, month text, budgeted numeric(14,2)
--- );
--- create table if not exists public.debts (
---   id uuid primary key, name text, concept text,
---   total_amount numeric(14,2), paid_amount numeric(14,2) default 0,
---   due_date date, type text, status text default 'pending'
--- );
--- create table if not exists public.receivables (
---   id uuid primary key, name text, concept text,
---   total_amount numeric(14,2), collected_amount numeric(14,2) default 0,
---   expected_date date, type text, status text default 'pending'
--- );
-
-alter table public.categories  disable row level security;
-alter table public.transactions disable row level security;
-`;
 
 // ------- EVENTS -------
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
@@ -1256,57 +1105,57 @@ document.getElementById('txSave').onclick=saveTransaction;
 document.getElementById('catClose').onclick=closeCatModal;
 document.getElementById('catCancel').onclick=closeCatModal;
 document.getElementById('catSave').onclick=saveCategory;
-document.getElementById('btnSyncHeader').onclick=()=>state.supabase?syncFromSupabase():showToast('Configurá Supabase en Ajustes');
-
+document.getElementById('btnSyncHeader').onclick=()=>state.supabase&&state.user?syncFromSupabase():showToast('No estás conectado');
+// Auth
+document.getElementById('tabSignIn').onclick=()=>switchAuthTab('signin');
+document.getElementById('tabSignUp').onclick=()=>switchAuthTab('signup');
+document.getElementById('btnSignIn').onclick=doSignIn;
+document.getElementById('btnSignUp').onclick=doSignUp;
+// Auth: submit con Enter
+['siPassword'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doSignIn();}));
+['suConfirm'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doSignUp();}));
 // Selector sheet
 document.getElementById('selectorClose').onclick=closeItemSelector;
 document.getElementById('selectorCancelBtn').onclick=closeItemSelector;
 document.querySelectorAll('.sel-opt').forEach(btn=>btn.addEventListener('click',()=>{
   const t=btn.dataset.type;
-  if(t==='fixed')openFixedModal();
-  else if(t==='variable')openVariableModal();
-  else if(t==='debt')openDebtModal();
-  else if(t==='receivable')openReceivableModal();
+  if(t==='fixed')openFixedModal();else if(t==='variable')openVariableModal();else if(t==='debt')openDebtModal();else if(t==='receivable')openReceivableModal();
 }));
-
-// Fixed modal
-document.getElementById('fixedModalClose').onclick=closeFixedModal;
-document.getElementById('fixedModalCancel').onclick=closeFixedModal;
-document.getElementById('fixedModalSave').onclick=saveFixedCost;
-
-// Variable modal
-document.getElementById('variableModalClose').onclick=closeVariableModal;
-document.getElementById('variableModalCancel').onclick=closeVariableModal;
-document.getElementById('variableModalSave').onclick=saveVariableBudget;
-
-// Debt modal
-document.getElementById('debtModalClose').onclick=closeDebtModal;
-document.getElementById('debtModalCancel').onclick=closeDebtModal;
-document.getElementById('debtModalSave').onclick=saveDebt;
-
-// Receivable modal
-document.getElementById('rcvModalClose').onclick=closeReceivableModal;
-document.getElementById('rcvModalCancel').onclick=closeReceivableModal;
-document.getElementById('rcvModalSave').onclick=saveReceivable;
-
-// Close cat dropdowns on outside click
+// Control modals
+document.getElementById('fixedModalClose').onclick=closeFixedModal;document.getElementById('fixedModalCancel').onclick=closeFixedModal;document.getElementById('fixedModalSave').onclick=saveFixedCost;
+document.getElementById('variableModalClose').onclick=closeVariableModal;document.getElementById('variableModalCancel').onclick=closeVariableModal;document.getElementById('variableModalSave').onclick=saveVariableBudget;
+document.getElementById('debtModalClose').onclick=closeDebtModal;document.getElementById('debtModalCancel').onclick=closeDebtModal;document.getElementById('debtModalSave').onclick=saveDebt;
+document.getElementById('rcvModalClose').onclick=closeReceivableModal;document.getElementById('rcvModalCancel').onclick=closeReceivableModal;document.getElementById('rcvModalSave').onclick=saveReceivable;
+// Close dropdowns on outside click
 document.addEventListener('click',e=>{if(!e.target.closest('.cat-card'))closeCatMenus();});
-
-// Keyboard: tx modal
+// Keyboard for tx modal
 document.addEventListener('keydown',e=>{
   if(!state.txModalOpen)return;
-  if(e.key==='Escape'){closeTxModal();return;}
-  if(e.key==='Enter'){saveTransaction();return;}
+  if(e.key==='Escape'){closeTxModal();return;}if(e.key==='Enter'){saveTransaction();return;}
   if(e.key==='Backspace'){keypadPress('back');return;}
-  if(/^[0-9]$/.test(e.key))keypadPress(e.key);
-  if(e.key===','||e.key==='.')keypadPress(',');
+  if(/^[0-9]$/.test(e.key))keypadPress(e.key);if(e.key===','||e.key==='.')keypadPress(',');
 });
 
 // ------- BOOT -------
-loadLocal();
-initSupabase();
-setTab('home');
-if(state.supabase)syncFromSupabase();
+async function boot(){
+  loadSettings();
+  if(!initSupabase()){
+    // Sin Supabase: modo local sin auth
+    showApp();setTab('home');return;
+  }
+  // Mostrar pantalla de auth mientras verificamos sesión
+  showAuthScreen();
+  // Verificar sesión existente
+  const{data:{session}}=await state.supabase.auth.getSession();
+  if(session)await onSession(session);
+  // Escuchar cambios de auth (login, logout, refresh de token)
+  state.supabase.auth.onAuthStateChange(async(event,session)=>{
+    if(session){await onSession(session);}
+    else{onSignOut();}
+  });
+}
+
+boot();
 </script>
 </body>
 </html>
