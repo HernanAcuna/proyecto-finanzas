@@ -424,6 +424,7 @@ function initSupabase(){
     catch(e){state.supabase=null;}
   }else{state.supabase=null;}return false;
 }
+let _syncInProgress=false; // guard: evita syncs paralelos
 function setSyncStatus(text){document.getElementById('syncStatus').textContent=text;}
 
 // ------- AUTH UI -------
@@ -507,10 +508,23 @@ async function doSignUp(){
   }
 }
 
-async function doSignOut(){
-  if(!confirm('¿Cerrar sesión?'))return;
-  await state.supabase.auth.signOut();
-  // onAuthStateChange limpia el estado
+function doSignOut(){
+  // confirm() nativo está bloqueado en iOS Safari PWA → usamos el modal propio
+  showConfirmModal({
+    title:'Cerrar sesión',
+    message:'¿Estás seguro de que querés cerrar sesión?',
+    okText:'Cerrar sesión',
+    okClass:'text-expense',
+    onConfirm:async()=>{
+      try{
+        await state.supabase.auth.signOut();
+        // onAuthStateChange → SIGNED_OUT → onSignOut() limpia el estado
+      }catch(e){
+        console.error('Error en signOut:',e);
+        onSignOut(); // forzar logout local si Supabase falla
+      }
+    }
+  });
 }
 
 // ------- SESSION HANDLER -------
@@ -533,25 +547,47 @@ function onSignOut(){
 // ------- SUPABASE SYNC -------
 async function syncFromSupabase(){
   if(!state.supabase||!state.user){setSyncStatus('');return;}
+  // Guard: evita múltiples syncs simultáneos (clicks repetidos, refresh de token, etc.)
+  if(_syncInProgress){return;}
+  _syncInProgress=true;
+  let timeoutId;
   try{
     setSyncStatus('sincronizando…');
-    const[{data:cats,error:e1},{data:txs,error:e2}]=await Promise.all([
-      state.supabase.from('categories').select('*').order('type').order('name'),
-      state.supabase.from('transactions').select('*').order('date',{ascending:false}),
+    // Timeout de 15 s: evita que la app quede trabada si Supabase no responde
+    const timeout=new Promise((_,rej)=>{
+      timeoutId=setTimeout(()=>rej(new Error('Timeout de red (15 s). Revisá tu conexión.')),15000);
+    });
+    // Queries con filtro por user_id — indispensable con RLS habilitado
+    const queryAll=Promise.all([
+      state.supabase.from('categories').select('*')
+        .eq('user_id',state.user.id)
+        .order('type').order('name'),
+      state.supabase.from('transactions').select('*')
+        .eq('user_id',state.user.id)
+        .order('date',{ascending:false}),
     ]);
+    const [{data:cats,error:e1},{data:txs,error:e2}]=await Promise.race([queryAll,timeout]);
+    clearTimeout(timeoutId);
     if(e1||e2)throw(e1||e2);
-    // Mapear categorías existentes del usuario
+    // Mapear categorías del usuario
     const mapped=(cats||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
     state.categories=mapped;
-    // Siempre verificar que existan todas las categorías por defecto (inserta solo las faltantes)
+    // Insertar categorías predeterminadas faltantes (solo las que no están)
     const seeded=await ensureDefaultCategories(mapped);
     if(seeded.length)state.categories=[...state.categories,...seeded];
     if(txs){
       state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
     }
-    setSyncStatus('✓ sincronizado');renderCurrentTab();
+    setSyncStatus('✓ sincronizado');
+    renderCurrentTab();
   }catch(err){
-    console.error(err);setSyncStatus('error sync');showToast('Error sync: '+(err.message||err));
+    clearTimeout(timeoutId);
+    console.error('syncFromSupabase error:',err);
+    setSyncStatus('⚠ sin sync');
+    showToast('Error de sincronización: '+(err.message||'revisá tu conexión'));
+    renderCurrentTab(); // renderizar de todas formas con el estado actual
+  }finally{
+    _syncInProgress=false;
   }
 }
 
@@ -575,7 +611,7 @@ async function remoteInsertTx(tx){
 }
 async function remoteDeleteTx(id){
   if(!state.supabase||!state.user)return;
-  const{error}=await state.supabase.from('transactions').delete().eq('id',id);
+  const{error}=await state.supabase.from('transactions').delete().eq('id',id).eq('user_id',state.user.id);
   if(error)throw error;
 }
 async function remoteUpsertCat(cat){
@@ -585,12 +621,12 @@ async function remoteUpsertCat(cat){
 }
 async function remoteDeleteCat(id){
   if(!state.supabase||!state.user)return;
-  const{error}=await state.supabase.from('categories').delete().eq('id',id);
+  const{error}=await state.supabase.from('categories').delete().eq('id',id).eq('user_id',state.user.id);
   if(error)throw error;
 }
 async function remoteMigrateCatTxs(fromId,toId){
   if(!state.supabase||!state.user)return;
-  const{error}=await state.supabase.from('transactions').update({category_id:toId}).eq('category_id',fromId);
+  const{error}=await state.supabase.from('transactions').update({category_id:toId}).eq('category_id',fromId).eq('user_id',state.user.id);
   if(error)throw error;
 }
 
@@ -1052,10 +1088,16 @@ async function executeCategoryDelete(cat,fb){
 }
 
 // ------- CONFIRM MODAL -------
-function showConfirmModal({title,message,onConfirm}){
-  document.getElementById('confirmTitle').textContent=title;document.getElementById('confirmMsg').textContent=message;
+function showConfirmModal({title,message,onConfirm,okText='Eliminar',okClass='text-expense'}){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=message;
   const m=document.getElementById('confirmModal');m.classList.remove('hidden');m.classList.add('flex');
-  const oldOk=document.getElementById('confirmOk');const newOk=oldOk.cloneNode(true);oldOk.parentNode.replaceChild(newOk,oldOk);
+  const oldOk=document.getElementById('confirmOk');
+  const newOk=oldOk.cloneNode(true);
+  oldOk.parentNode.replaceChild(newOk,oldOk);
+  // Configurar texto y estilo del botón de acción
+  newOk.textContent=okText;
+  newOk.className=`flex-1 py-3 text-sm font-semibold rounded-br-2xl hover:bg-card transition-colors ${okClass}`;
   newOk.onclick=()=>{closeConfirmModal();onConfirm();};
   document.getElementById('confirmCancel').onclick=closeConfirmModal;
 }
