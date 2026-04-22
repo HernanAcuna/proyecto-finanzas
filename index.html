@@ -395,17 +395,58 @@ function isSystemCategory(cat){return SYSTEM_CATEGORY_NAMES.includes(cat.name);}
 function formatMonthLabel(key){const[y,m]=key.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});}
 function isValidEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
 
-// ------- CONTROL: localStorage con prefijo por usuario -------
-function ctrlKey(name){const uid=state.user?.id;return uid?`u_${uid.slice(0,8)}_${name}`:name;}
-const saveFC  = ()=>localStorage.setItem(ctrlKey('fin_fc'),   JSON.stringify(state.fixedCosts));
-const saveFR  = ()=>localStorage.setItem(ctrlKey('fin_fr'),   JSON.stringify(state.fixedCostRecords));
-const saveVB  = ()=>localStorage.setItem(ctrlKey('fin_vb'),   JSON.stringify(state.variableBudgets));
-const saveDB  = ()=>localStorage.setItem(ctrlKey('fin_db'),   JSON.stringify(state.debts));
-const saveRCV = ()=>localStorage.setItem(ctrlKey('fin_rcv'),  JSON.stringify(state.receivables));
-function loadControlData(){
-  const p=(name,def=[])=>{try{return JSON.parse(localStorage.getItem(ctrlKey(name))||'null')||def;}catch{return def;}};
-  state.fixedCosts=p('fin_fc'); state.fixedCostRecords=p('fin_fr');
-  state.variableBudgets=p('fin_vb'); state.debts=p('fin_db'); state.receivables=p('fin_rcv');
+// ------- CONTROL: Supabase (persistente, cross-device) -------
+// Mapeo camelCase (JS) ↔ snake_case (Supabase)
+
+// — Gastos fijos —
+async function remoteUpsertFC(fc){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('fixed_costs').upsert({id:fc.id,user_id:state.user.id,name:fc.name,amount:fc.amount,due_day:fc.dueDay,icon:fc.icon,active:fc.active,created_at:fc.createdAt});
+  if(error)throw error;
+}
+async function remoteDeleteFC(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('fixed_costs').delete().eq('id',id).eq('user_id',state.user.id);
+  if(error)throw error;
+}
+// — Registros mensuales de gastos fijos —
+async function remoteUpsertFR(rec){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('fixed_cost_records').upsert({id:rec.id,user_id:state.user.id,fixed_cost_id:rec.fixedCostId,month:rec.month,amount:rec.amount,status:rec.status,paid_at:rec.paidAt});
+  if(error)throw error;
+}
+// — Presupuestos variables —
+async function remoteUpsertVB(vb){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('variable_budgets').upsert({id:vb.id,user_id:state.user.id,category_id:vb.categoryId,month:vb.month,budgeted:vb.budgeted});
+  if(error)throw error;
+}
+async function remoteDeleteVB(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('variable_budgets').delete().eq('id',id).eq('user_id',state.user.id);
+  if(error)throw error;
+}
+// — Deudas —
+async function remoteUpsertDebt(d){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('debts').upsert({id:d.id,user_id:state.user.id,name:d.name,concept:d.concept,total_amount:d.totalAmount,paid_amount:d.paidAmount,due_date:d.dueDate||null,type:d.type,status:d.status});
+  if(error)throw error;
+}
+async function remoteDeleteDebt(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('debts').delete().eq('id',id).eq('user_id',state.user.id);
+  if(error)throw error;
+}
+// — Por cobrar —
+async function remoteUpsertRCV(r){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('receivables').upsert({id:r.id,user_id:state.user.id,name:r.name,concept:r.concept,total_amount:r.totalAmount,collected_amount:r.collectedAmount,expected_date:r.expectedDate||null,type:r.type,status:r.status});
+  if(error)throw error;
+}
+async function remoteDeleteRCV(id){
+  if(!state.supabase||!state.user)return;
+  const{error}=await state.supabase.from('receivables').delete().eq('id',id).eq('user_id',state.user.id);
+  if(error)throw error;
 }
 
 // ------- LOCAL STORAGE (configuración) -------
@@ -530,10 +571,9 @@ function doSignOut(){
 // ------- SESSION HANDLER -------
 async function onSession(session){
   state.user=session.user;
-  loadControlData(); // cargar datos de Control con prefijo del usuario
   showApp();
   setTab(state.tab||'home');
-  await syncFromSupabase();
+  await syncFromSupabase(); // carga todo: categorías, transacciones y módulo Control
 }
 
 function onSignOut(){
@@ -557,27 +597,35 @@ async function syncFromSupabase(){
     const timeout=new Promise((_,rej)=>{
       timeoutId=setTimeout(()=>rej(new Error('Timeout de red (15 s). Revisá tu conexión.')),15000);
     });
-    // Queries con filtro por user_id — indispensable con RLS habilitado
+    // Queries paralelas con filtro user_id — 7 tablas en simultáneo
+    const uid=state.user.id;
     const queryAll=Promise.all([
-      state.supabase.from('categories').select('*')
-        .eq('user_id',state.user.id)
-        .order('type').order('name'),
-      state.supabase.from('transactions').select('*')
-        .eq('user_id',state.user.id)
-        .order('date',{ascending:false}),
+      state.supabase.from('categories').select('*').eq('user_id',uid).order('type').order('name'),
+      state.supabase.from('transactions').select('*').eq('user_id',uid).order('date',{ascending:false}),
+      state.supabase.from('fixed_costs').select('*').eq('user_id',uid).order('created_at'),
+      state.supabase.from('fixed_cost_records').select('*').eq('user_id',uid),
+      state.supabase.from('variable_budgets').select('*').eq('user_id',uid),
+      state.supabase.from('debts').select('*').eq('user_id',uid).order('created_at'),
+      state.supabase.from('receivables').select('*').eq('user_id',uid).order('created_at'),
     ]);
-    const [{data:cats,error:e1},{data:txs,error:e2}]=await Promise.race([queryAll,timeout]);
+    const[{data:cats,error:e1},{data:txs,error:e2},{data:fcs,error:e3},{data:frs,error:e4},{data:vbs,error:e5},{data:dbs,error:e6},{data:rcvs,error:e7}]=await Promise.race([queryAll,timeout]);
     clearTimeout(timeoutId);
-    if(e1||e2)throw(e1||e2);
-    // Mapear categorías del usuario
+    if(e1||e2||e3||e4||e5||e6||e7)throw(e1||e2||e3||e4||e5||e6||e7);
+    // — Categorías —
     const mapped=(cats||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
     state.categories=mapped;
-    // Insertar categorías predeterminadas faltantes (solo las que no están)
     const seeded=await ensureDefaultCategories(mapped);
     if(seeded.length)state.categories=[...state.categories,...seeded];
+    // — Transacciones —
     if(txs){
       state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
     }
+    // — Módulo Control —
+    state.fixedCosts=(fcs||[]).map(r=>({id:r.id,name:r.name,amount:Number(r.amount),dueDay:r.due_day,icon:r.icon||'🔁',active:r.active!==false,createdAt:r.created_at}));
+    state.fixedCostRecords=(frs||[]).map(r=>({id:r.id,fixedCostId:r.fixed_cost_id,month:r.month,amount:Number(r.amount),status:r.status,paidAt:r.paid_at}));
+    state.variableBudgets=(vbs||[]).map(r=>({id:r.id,categoryId:r.category_id,month:r.month,budgeted:Number(r.budgeted)}));
+    state.debts=(dbs||[]).map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),paidAmount:Number(r.paid_amount||0),dueDate:r.due_date||'',type:r.type,status:r.status}));
+    state.receivables=(rcvs||[]).map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),collectedAmount:Number(r.collected_amount||0),expectedDate:r.expected_date||'',type:r.type,status:r.status}));
     setSyncStatus('✓ sincronizado');
     renderCurrentTab();
   }catch(err){
@@ -735,14 +783,13 @@ function renderPie(byCat,legendEl){
 // ------- VIEW: CONTROL -------
 function ensureFixedRecords(mk){
   const existing=new Set(state.fixedCostRecords.filter(r=>r.month===mk).map(r=>r.fixedCostId));
-  let changed=false;
   for(const fc of state.fixedCosts){
     if(!fc.active||existing.has(fc.id))continue;
     const cm=(fc.createdAt||'').slice(0,7);if(cm&&mk<cm)continue;
-    state.fixedCostRecords.push({id:uid(),fixedCostId:fc.id,month:mk,amount:fc.amount,status:'pending',paidAt:null});
-    changed=true;
+    const rec={id:uid(),fixedCostId:fc.id,month:mk,amount:fc.amount,status:'pending',paidAt:null};
+    state.fixedCostRecords.push(rec);
+    remoteUpsertFR(rec).catch(e=>console.error('Error creando registro fijo:',e));
   }
-  if(changed)saveFR();
 }
 function viewControl(){
   ensureFixedRecords(state.controlMonth);
@@ -817,9 +864,9 @@ function buildFixedItem(rec,fc){
     <span class="font-semibold text-sm ${paid?'text-muted':''} mr-1">${fmtMoney(rec.amount)}</span>
     <button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button>
     <button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button>`;
-  el.querySelector('.toggle-paid').onclick=()=>{rec.status=paid?'pending':'paid';rec.paidAt=rec.status==='paid'?new Date().toISOString():null;saveFR();renderCurrentTab();};
+  el.querySelector('.toggle-paid').onclick=()=>{rec.status=paid?'pending':'paid';rec.paidAt=rec.status==='paid'?new Date().toISOString():null;renderCurrentTab();remoteUpsertFR(rec).catch(e=>console.error('Error actualizando registro:',e));};
   el.querySelector('.edit-btn').onclick=()=>openFixedModal(fc);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar gasto fijo',message:`¿Eliminar "${fc.name}"? Se borrarán todos sus registros.`,onConfirm:()=>{state.fixedCostRecords=state.fixedCostRecords.filter(r=>r.fixedCostId!==fc.id);state.fixedCosts=state.fixedCosts.filter(f=>f.id!==fc.id);saveFR();saveFC();renderCurrentTab();showToast('Gasto fijo eliminado');}});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar gasto fijo',message:`¿Eliminar "${fc.name}"? Se borrarán todos sus registros.`,onConfirm:()=>{state.fixedCostRecords=state.fixedCostRecords.filter(r=>r.fixedCostId!==fc.id);state.fixedCosts=state.fixedCosts.filter(f=>f.id!==fc.id);renderCurrentTab();showToast('Gasto fijo eliminado');remoteDeleteFC(fc.id).catch(e=>console.error('Error eliminando gasto fijo:',e));}});
   return el;
 }
 function buildVariableSection(){
@@ -843,7 +890,7 @@ function buildVariableItem(b,mk){
     <div class="ctrl-prog-track w-full"><div class="ctrl-prog-fill" style="width:${pct}%;background:${over?'#ef4444':cat.color}"></div></div>
     <div class="text-xs ${over?'text-expense':'text-muted'}">${over?'Excedido en '+fmtMoney(Math.abs(b.budgeted-spent)):'Restante: '+fmtMoney(b.budgeted-spent)}</div>`;
   el.querySelector('.edit-btn').onclick=()=>openVariableModal(b);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar presupuesto',message:`¿Eliminar el presupuesto de "${cat.name}"?`,onConfirm:()=>{state.variableBudgets=state.variableBudgets.filter(x=>x.id!==b.id);saveVB();renderCurrentTab();showToast('Presupuesto eliminado');}});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar presupuesto',message:`¿Eliminar el presupuesto de "${cat.name}"?`,onConfirm:()=>{state.variableBudgets=state.variableBudgets.filter(x=>x.id!==b.id);renderCurrentTab();showToast('Presupuesto eliminado');remoteDeleteVB(b.id).catch(e=>console.error('Error eliminando presupuesto:',e));}});
   return el;
 }
 function buildDebtSection(){
@@ -867,7 +914,7 @@ function buildDebtItem(d){
       ${d.dueDate?`<span>Vence: ${d.dueDate}</span>`:''}
     </div>`;
   el.querySelector('.edit-btn').onclick=()=>openDebtModal(d);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar deuda',message:`¿Eliminar la deuda con "${d.name}"?`,onConfirm:()=>{state.debts=state.debts.filter(x=>x.id!==d.id);saveDB();renderCurrentTab();showToast('Deuda eliminada');}});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar deuda',message:`¿Eliminar la deuda con "${d.name}"?`,onConfirm:()=>{state.debts=state.debts.filter(x=>x.id!==d.id);renderCurrentTab();showToast('Deuda eliminada');remoteDeleteDebt(d.id).catch(e=>console.error('Error eliminando deuda:',e));}});
   return el;
 }
 function buildReceivableSection(){
@@ -891,7 +938,7 @@ function buildReceivableItem(r){
       ${r.expectedDate?`<span>Fecha est.: ${r.expectedDate}</span>`:''}
     </div>`;
   el.querySelector('.edit-btn').onclick=()=>openReceivableModal(r);
-  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar cobro',message:`¿Eliminar el cobro de "${r.name}"?`,onConfirm:()=>{state.receivables=state.receivables.filter(x=>x.id!==r.id);saveRCV();renderCurrentTab();showToast('Cobro eliminado');}});
+  el.querySelector('.del-btn').onclick=()=>showConfirmModal({title:'Eliminar cobro',message:`¿Eliminar el cobro de "${r.name}"?`,onConfirm:()=>{state.receivables=state.receivables.filter(x=>x.id!==r.id);renderCurrentTab();showToast('Cobro eliminado');remoteDeleteRCV(r.id).catch(e=>console.error('Error eliminando cobro:',e));}});
   return el;
 }
 
@@ -1121,11 +1168,14 @@ function saveFixedCost(){
   const dueDay=parseInt(document.getElementById('fcDueDay').value)||1,icon=document.getElementById('fcIcon').value.trim()||'🔁',active=document.getElementById('fcActive').checked;
   if(!name){showToast('Ingresá un nombre');return;}if(amount<=0){showToast('Ingresá un monto válido');return;}
   if(fixedEditing){
-    const prev=fixedEditing.amount;Object.assign(fixedEditing,{name,amount,dueDay,icon,active});saveFC();
-    if(prev!==amount){const rec=state.fixedCostRecords.find(r=>r.fixedCostId===fixedEditing.id&&r.month===state.controlMonth&&r.status==='pending');if(rec)rec.amount=amount;saveFR();}
+    const prev=fixedEditing.amount;Object.assign(fixedEditing,{name,amount,dueDay,icon,active});
+    remoteUpsertFC(fixedEditing).catch(e=>console.error('Error guardando gasto fijo:',e));
+    if(prev!==amount){const rec=state.fixedCostRecords.find(r=>r.fixedCostId===fixedEditing.id&&r.month===state.controlMonth&&r.status==='pending');if(rec){rec.amount=amount;remoteUpsertFR(rec).catch(()=>{});}}
     showToast('Gasto fijo actualizado');
   }else{
-    const fc={id:uid(),name,amount,dueDay,icon,active,createdAt:todayIso()};state.fixedCosts.push(fc);saveFC();ensureFixedRecords(state.controlMonth);showToast('Gasto fijo creado');
+    const fc={id:uid(),name,amount,dueDay,icon,active,createdAt:todayIso()};state.fixedCosts.push(fc);
+    remoteUpsertFC(fc).catch(e=>console.error('Error guardando gasto fijo:',e));
+    ensureFixedRecords(state.controlMonth);showToast('Gasto fijo creado');
   }
   closeFixedModal();renderCurrentTab();
 }
@@ -1144,8 +1194,8 @@ function saveVariableBudget(){
   const catId=document.getElementById('vbCategory').value,budgeted=parseFloat(document.getElementById('vbAmount').value)||0;
   if(!catId){showToast('Seleccioná una categoría');return;}if(budgeted<=0){showToast('Ingresá un monto válido');return;}
   const mk=state.controlMonth;
-  if(variableEditing){Object.assign(variableEditing,{categoryId:catId,budgeted});saveVB();showToast('Presupuesto actualizado');}
-  else{if(state.variableBudgets.find(b=>b.categoryId===catId&&b.month===mk)){showToast('Ya existe un presupuesto para esa categoría este mes');return;}state.variableBudgets.push({id:uid(),categoryId:catId,month:mk,budgeted});saveVB();showToast('Presupuesto creado');}
+  if(variableEditing){Object.assign(variableEditing,{categoryId:catId,budgeted});remoteUpsertVB(variableEditing).catch(e=>console.error('Error guardando presupuesto:',e));showToast('Presupuesto actualizado');}
+  else{if(state.variableBudgets.find(b=>b.categoryId===catId&&b.month===mk)){showToast('Ya existe un presupuesto para esa categoría este mes');return;}const vb={id:uid(),categoryId:catId,month:mk,budgeted};state.variableBudgets.push(vb);remoteUpsertVB(vb).catch(e=>console.error('Error guardando presupuesto:',e));showToast('Presupuesto creado');}
   closeVariableModal();renderCurrentTab();
 }
 
@@ -1163,8 +1213,8 @@ function saveDebt(){
   const totalAmount=parseFloat(document.getElementById('dbTotal').value)||0,paidAmount=parseFloat(document.getElementById('dbPaid').value)||0;
   const dueDate=document.getElementById('dbDue').value,type=document.getElementById('dbType').value,status=document.getElementById('dbStatus').value;
   if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(paidAmount>totalAmount){showToast('El monto pagado no puede superar el total');return;}
-  if(debtEditing){Object.assign(debtEditing,{name,concept,totalAmount,paidAmount,dueDate,type,status});saveDB();showToast('Deuda actualizada');}
-  else{state.debts.push({id:uid(),name,concept,totalAmount,paidAmount,dueDate,type,status});saveDB();showToast('Deuda registrada');}
+  if(debtEditing){Object.assign(debtEditing,{name,concept,totalAmount,paidAmount,dueDate,type,status});remoteUpsertDebt(debtEditing).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda actualizada');}
+  else{const d={id:uid(),name,concept,totalAmount,paidAmount,dueDate,type,status};state.debts.push(d);remoteUpsertDebt(d).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda registrada');}
   closeDebtModal();renderCurrentTab();
 }
 
@@ -1182,8 +1232,8 @@ function saveReceivable(){
   const totalAmount=parseFloat(document.getElementById('rcvTotal').value)||0,collectedAmount=parseFloat(document.getElementById('rcvCollected').value)||0;
   const expectedDate=document.getElementById('rcvDate').value,type=document.getElementById('rcvType').value,status=document.getElementById('rcvStatus').value;
   if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(collectedAmount>totalAmount){showToast('El monto cobrado no puede superar el total');return;}
-  if(rcvEditing){Object.assign(rcvEditing,{name,concept,totalAmount,collectedAmount,expectedDate,type,status});saveRCV();showToast('Cobro actualizado');}
-  else{state.receivables.push({id:uid(),name,concept,totalAmount,collectedAmount,expectedDate,type,status});saveRCV();showToast('Cobro registrado');}
+  if(rcvEditing){Object.assign(rcvEditing,{name,concept,totalAmount,collectedAmount,expectedDate,type,status});remoteUpsertRCV(rcvEditing).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro actualizado');}
+  else{const r={id:uid(),name,concept,totalAmount,collectedAmount,expectedDate,type,status};state.receivables.push(r);remoteUpsertRCV(r).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro registrado');}
   closeReceivableModal();renderCurrentTab();
 }
 
@@ -1316,11 +1366,10 @@ async function boot(){
     }
     // INITIAL_SESSION sin sesión → no hacer nada, ya está en auth screen
   });
-}  
+}
 
 registerSW(); // Registrar SW independiente del flujo de auth
 boot();
 </script>
 </body>
 </html>
-
