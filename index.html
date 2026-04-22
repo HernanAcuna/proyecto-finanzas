@@ -180,7 +180,7 @@
         <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="1">1</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="2">2</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="3">3</button>
         <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="4">4</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="5">5</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="6">6</button>
         <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="7">7</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="8">8</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="9">9</button>
-        <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key=",">,</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="0">0</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="back">⌫</button>
+        <button class="keypad-btn bg-card py-4 text-sm font-semibold rounded-xl" data-key="000">000</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="0">0</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="back">⌫</button>
       </div>
       <div><div class="text-xs text-muted uppercase tracking-wider mb-2">Categoría</div><div id="txCategories" class="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto"></div></div>
       <div class="grid grid-cols-2 gap-2">
@@ -377,8 +377,8 @@ const state = {
 function currentMonthKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function todayIso(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);}
 function uid(){return 'x-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
-function fmtMoney(n){const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(abs);return `${n<0?'-':''}${state.settings.currencySymbol}${s}`;}
-function parseAmount(raw){if(!raw)return 0;const n=parseFloat(raw.replace(',','.'));return isNaN(n)?0:n;}
+function fmtMoney(n){const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0}).format(abs);return `${n<0?'-':''}${state.settings.currencySymbol}${s}`;}
+function parseAmount(raw){if(!raw)return 0;const n=parseInt(raw.replace(/\D/g,''),10);return isNaN(n)?0:n;}
 function showToast(msg,ms=2400){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.add('hidden'),ms);}
 function isSystemCategory(cat){return SYSTEM_CATEGORY_NAMES.includes(cat.name);}
 function formatMonthLabel(key){const[y,m]=key.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});}
@@ -529,11 +529,12 @@ async function syncFromSupabase(){
       state.supabase.from('transactions').select('*').order('date',{ascending:false}),
     ]);
     if(e1||e2)throw(e1||e2);
-    if(cats&&cats.length>0){
-      state.categories=cats.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
-    }else if(cats&&cats.length===0){
-      await pushDefaultCategories();
-    }
+    // Mapear categorías existentes del usuario
+    const mapped=(cats||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+    state.categories=mapped;
+    // Siempre verificar que existan todas las categorías por defecto (inserta solo las faltantes)
+    const seeded=await ensureDefaultCategories(mapped);
+    if(seeded.length)state.categories=[...state.categories,...seeded];
     if(txs){
       state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
     }
@@ -543,12 +544,16 @@ async function syncFromSupabase(){
   }
 }
 
-async function pushDefaultCategories(){
-  if(!state.supabase||!state.user)return;
-  const rows=DEFAULT_CATEGORIES.map(c=>({name:c.name,type:c.type,icon:c.icon,color:c.color,user_id:state.user.id}));
+// Inserta solo las categorías predeterminadas que le faltan al usuario (por nombre)
+async function ensureDefaultCategories(existing){
+  if(!state.supabase||!state.user)return[];
+  const existingNames=new Set(existing.map(c=>c.name));
+  const missing=DEFAULT_CATEGORIES.filter(c=>!existingNames.has(c.name));
+  if(!missing.length)return[];
+  const rows=missing.map(c=>({name:c.name,type:c.type,icon:c.icon,color:c.color,user_id:state.user.id}));
   const{data,error}=await state.supabase.from('categories').insert(rows).select();
-  if(error)throw error;
-  state.categories=data.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon,color:c.color}));
+  if(error){console.error('Error seeding categories:',error);return[];}
+  return(data||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
 }
 
 // Supabase remote ops — todas incluyen user_id
@@ -882,52 +887,54 @@ function closeCatMenus(){document.querySelectorAll('.cat-dropdown').forEach(d=>d
 // ------- VIEW: SETTINGS -------
 function viewSettings(){
   const root=document.createElement('div');root.className='fade-in space-y-4';
-  const s=state.settings;
-  // Bloque de cuenta (solo si hay usuario autenticado)
-  const accountBlock=state.user?`
-    <div class="rounded-2xl bg-card border border-line p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-semibold text-sm">Cuenta</div>
-          <div class="text-xs text-muted mt-0.5">${state.user.email}</div>
-        </div>
-        <button id="btnSignOut" class="px-4 py-2 rounded-lg bg-expense/20 text-expense text-sm font-medium">Cerrar sesión</button>
-      </div>
-    </div>`:'';
+  const cur=state.settings.currency||'ARS';
+  const currencies=[
+    {code:'ARS',sym:'$',label:'$ Peso argentino'},
+    {code:'USD',sym:'U$D',label:'U$D Dólar'},
+    {code:'EUR',sym:'€',label:'€ Euro'},
+  ];
+  const curBtns=currencies.map(c=>`
+    <button data-cur="${c.code}" data-sym="${c.sym}" class="cur-opt flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${cur===c.code?'bg-brand border-brand text-white':'bg-card border-line text-muted hover:border-brand/50'}">${c.label}</button>
+  `).join('');
+
   root.innerHTML=`
     <h2 class="font-semibold text-lg">Ajustes</h2>
-    ${accountBlock}
-    <div class="rounded-2xl bg-card border border-line p-4 space-y-3">
-      <h3 class="font-semibold">Conexión Supabase</h3>
-      <p class="text-sm text-muted">Conexión activa. Solo modificá si cambiaste de proyecto.</p>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">URL del proyecto</span><input id="sbUrl" type="text" class="w-full" value="${s.supabaseUrl}" placeholder="https://xxxxx.supabase.co" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Anon key</span><input id="sbKey" type="password" class="w-full" value="${s.supabaseKey}" placeholder="eyJhbGciOi..." /></label>
-      <div class="flex gap-2">
-        <button id="sbSave" class="px-4 py-2 rounded-lg bg-brand font-medium text-sm">Guardar</button>
-        <button id="sbSync" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Sincronizar</button>
+
+    ${state.user?`
+    <div class="rounded-2xl bg-card border border-line p-4">
+      <div class="text-xs text-muted uppercase tracking-wider mb-3">Cuenta</div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-medium text-sm truncate">${state.user.email}</div>
+          <div class="text-xs text-muted mt-0.5">Sesión activa · datos sincronizados</div>
+        </div>
+        <button id="btnSignOut" class="flex-shrink-0 px-4 py-2 rounded-xl bg-expense/15 text-expense text-sm font-medium hover:bg-expense/25 transition-colors">Cerrar sesión</button>
       </div>
+    </div>`:''}
+
+    <div class="rounded-2xl bg-card border border-line p-4 space-y-3">
+      <div class="text-xs text-muted uppercase tracking-wider">Moneda</div>
+      <div class="flex flex-col gap-2">${curBtns}</div>
     </div>
-    <div class="rounded-2xl bg-card border border-line p-4 space-y-3">
-      <h3 class="font-semibold">Datos</h3>
-      <div class="flex gap-2 flex-wrap">
-        <button id="btnExport" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Exportar JSON</button>
-        <button id="btnImport" class="px-4 py-2 rounded-lg bg-card border border-line text-sm">Importar JSON</button>
-        <input id="fileImport" type="file" accept="application/json" class="hidden" />
-      </div>
+
+    <div class="rounded-2xl bg-card border border-line p-4">
+      <div class="text-xs text-muted uppercase tracking-wider mb-3">Sincronización</div>
+      <button id="btnSync" class="w-full py-2.5 rounded-xl bg-card border border-line text-sm hover:border-brand/50 transition-colors flex items-center justify-center gap-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+        Sincronizar ahora
+      </button>
     </div>`;
-  if(state.user)root.querySelector('#btnSignOut').onclick=doSignOut;
-  root.querySelector('#sbSave').onclick=()=>{
-    state.settings.supabaseUrl=root.querySelector('#sbUrl').value.trim();
-    state.settings.supabaseKey=root.querySelector('#sbKey').value.trim();
-    saveLocalSettings();showToast('Credenciales guardadas. Recargá la página para reconectar.');
+
+  if(state.user) root.querySelector('#btnSignOut').onclick=doSignOut;
+  root.querySelector('#btnSync').onclick=async()=>{
+    if(!state.supabase||!state.user){showToast('No estás conectado');return;}
+    await syncFromSupabase();showToast('Sincronización completada');
   };
-  root.querySelector('#sbSync').onclick=async()=>{if(!state.supabase||!state.user){showToast('No estás conectado');return;}await syncFromSupabase();};
-  root.querySelector('#btnExport').onclick=exportJson;
-  root.querySelector('#btnImport').onclick=()=>root.querySelector('#fileImport').click();
-  root.querySelector('#fileImport').onchange=e=>{
-    const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(obj.categories){state.categories=obj.categories;}if(obj.transactions){state.transactions=obj.transactions;}showToast('Datos importados');renderCurrentTab();}catch{showToast('Archivo JSON inválido');}};r.readAsText(f);
-  };
+  root.querySelectorAll('.cur-opt').forEach(btn=>btn.onclick=()=>{
+    state.settings.currency=btn.dataset.cur;
+    state.settings.currencySymbol=btn.dataset.sym;
+    saveLocalSettings();renderCurrentTab();showToast('Moneda actualizada');
+  });
   return root;
 }
 function exportJson(){
@@ -949,9 +956,18 @@ function updateTxAmountDisplay(){
   el.className='text-center text-4xl font-semibold py-3 rounded-xl bg-card '+(state.txType==='income'?'text-income':'text-expense');
 }
 function keypadPress(key){
-  if(key==='back'){state.txAmountRaw=state.txAmountRaw.slice(0,-1);}
-  else if(key===','){if(!state.txAmountRaw.includes(','))state.txAmountRaw=(state.txAmountRaw||'0')+',';}
-  else{if(state.txAmountRaw.includes(',')){const dec=state.txAmountRaw.split(',')[1]||'';if(dec.length>=2)return;}if(state.txAmountRaw==='0')state.txAmountRaw=key;else state.txAmountRaw+=key;if(state.txAmountRaw.length>12)state.txAmountRaw=state.txAmountRaw.slice(0,12);}
+  if(key==='back'){
+    state.txAmountRaw=state.txAmountRaw.slice(0,-1);
+  }else if(key==='000'){
+    if(state.txAmountRaw&&state.txAmountRaw!=='0'){
+      const next=state.txAmountRaw+'000';
+      if(next.length<=10)state.txAmountRaw=next;
+    }
+  }else{
+    if(state.txAmountRaw==='0'||!state.txAmountRaw)state.txAmountRaw=key;
+    else state.txAmountRaw+=key;
+    if(state.txAmountRaw.length>10)state.txAmountRaw=state.txAmountRaw.slice(0,10);
+  }
   updateTxAmountDisplay();
 }
 function renderTxCategories(){
@@ -1141,7 +1157,7 @@ document.addEventListener('keydown',e=>{
   if(!state.txModalOpen)return;
   if(e.key==='Escape'){closeTxModal();return;}if(e.key==='Enter'){saveTransaction();return;}
   if(e.key==='Backspace'){keypadPress('back');return;}
-  if(/^[0-9]$/.test(e.key))keypadPress(e.key);if(e.key===','||e.key==='.')keypadPress(',');
+  if(/^[0-9]$/.test(e.key))keypadPress(e.key);
 });
 
 // ------- BOOT -------
