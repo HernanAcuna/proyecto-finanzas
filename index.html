@@ -447,12 +447,13 @@ function setAuthBtnLoading(btnId,loading,normalText){
 function translateAuthError(msg){
   const map={
     'Invalid login credentials':'Email o contraseña incorrectos',
-    'Email not confirmed':'Confirmá tu email antes de entrar',
+    'Email not confirmed':'El email no fue confirmado. Contactá al administrador.',
     'User already registered':'Este email ya tiene una cuenta',
     'Password should be at least 6 characters':'La contraseña debe tener al menos 6 caracteres',
     'Unable to validate email address: invalid format':'Formato de email inválido',
     'signup is disabled':'El registro está deshabilitado',
     'email rate limit exceeded':'Demasiados intentos. Esperá unos minutos',
+    'over_email_send_rate_limit':'Demasiados intentos. Esperá unos minutos',
   };
   for(const[k,v] of Object.entries(map)){if(msg.toLowerCase().includes(k.toLowerCase()))return v;}
   return msg;
@@ -483,14 +484,15 @@ async function doSignUp(){
   if(!password){setAuthMsg('suMsg','Ingresá una contraseña');return;}
   if(password.length<6){setAuthMsg('suMsg','La contraseña debe tener al menos 6 caracteres');return;}
   if(password!==confirm){setAuthMsg('suMsg','Las contraseñas no coinciden');return;}
-  setAuthBtnLoading('btnSignUp',true,'Crear cuenta');
-  const{data,error}=await state.supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});
+  setAuthBtnLoading('btnSignUp',true,'Crear cuenta…');
+  const{data,error}=await state.supabase.auth.signUp({email,password});
   setAuthBtnLoading('btnSignUp',false,'Crear cuenta');
   if(error){setAuthMsg('suMsg',translateAuthError(error.message));return;}
-  if(data.session){
-    // Confirmación de email desactivada → auto login vía onAuthStateChange
-  }else{
-    setAuthMsg('suMsg','✉️ Revisá tu email para confirmar la cuenta y luego iniciá sesión.','success');
+  // Con confirmación de email desactivada en Supabase, data.session viene directo
+  // y onAuthStateChange → onSession() abre la app automáticamente.
+  // Si por alguna razón no hay sesión inmediata, avisamos.
+  if(!data.session){
+    setAuthMsg('suMsg','Cuenta creada. Iniciá sesión para entrar.','success');
   }
 }
 
