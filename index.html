@@ -591,7 +591,7 @@ async function syncFromSupabase(){
   if(_syncInProgress){return;}
   _syncInProgress=true;
   let timeoutId;
-  // Snapshot del estado actual — se restaura si algo falla
+  // Snapshot del estado actual — se restaura si falla lo crítico
   const snap={
     categories:[...state.categories],
     transactions:[...state.transactions],
@@ -620,36 +620,48 @@ async function syncFromSupabase(){
     ]);
     const[{data:cats,error:e1},{data:txs,error:e2},{data:fcs,error:e3},{data:frs,error:e4},{data:vbs,error:e5},{data:dbs,error:e6},{data:rcvs,error:e7}]=await Promise.race([queryAll,timeout]);
     clearTimeout(timeoutId);
-    if(e1||e2||e3||e4||e5||e6||e7)throw(e1||e2||e3||e4||e5||e6||e7);
-    // Guard anti-vaciado: si teníamos datos y los resultados vienen vacíos, no sobreescribir
-    const hadData=snap.categories.length||snap.transactions.length||snap.fixedCosts.length;
-    const gotEmpty=!(cats&&cats.length)&&!(txs&&txs.length)&&!(fcs&&fcs.length);
+    // Log de errores por tabla — sin tirar todo si falla una tabla secundaria
+    if(e1)console.error('[sync] categories:',e1.message);
+    if(e2)console.error('[sync] transactions:',e2.message);
+    if(e3)console.error('[sync] fixed_costs:',e3.message);
+    if(e4)console.error('[sync] fixed_cost_records:',e4.message);
+    if(e5)console.error('[sync] variable_budgets:',e5.message);
+    if(e6)console.error('[sync] debts:',e6.message);
+    if(e7)console.error('[sync] receivables:',e7.message);
+    // Si las dos tablas críticas (categorías Y transacciones) fallan juntas → abortar
+    if(e1&&e2)throw e1;
+    // Guard anti-vaciado: si teníamos datos y categorías+transacciones vienen vacíos → conservar
+    const hadData=snap.categories.length||snap.transactions.length;
+    const gotEmpty=!(cats&&cats.length)&&!(txs&&txs.length);
     if(hadData&&gotEmpty){
-      console.warn('syncFromSupabase: respuesta vacía con datos previos — conservando snapshot');
+      console.warn('[sync] respuesta vacía con datos previos — conservando snapshot');
       setSyncStatus('✓ sin cambios');
       renderCurrentTab();
       return;
     }
-    // — Categorías —
-    const mapped=(cats||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
-    state.categories=mapped;
-    const seeded=await ensureDefaultCategories(mapped);
-    if(seeded.length)state.categories=[...state.categories,...seeded];
-    // — Transacciones —
-    if(txs){
+    // — Categorías (solo actualizar si la query tuvo éxito) —
+    if(!e1&&cats){
+      const mapped=cats.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+      state.categories=mapped;
+      const seeded=await ensureDefaultCategories(mapped);
+      if(seeded.length)state.categories=[...state.categories,...seeded];
+    }
+    // — Transacciones (solo actualizar si la query tuvo éxito) —
+    if(!e2&&txs){
       state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
     }
-    // — Módulo Control —
-    state.fixedCosts=(fcs||[]).map(r=>({id:r.id,name:r.name,amount:Number(r.amount),dueDay:r.due_day,icon:r.icon||'🔁',active:r.active!==false,createdAt:r.created_at}));
-    state.fixedCostRecords=(frs||[]).map(r=>({id:r.id,fixedCostId:r.fixed_cost_id,month:r.month,amount:Number(r.amount),status:r.status,paidAt:r.paid_at}));
-    state.variableBudgets=(vbs||[]).map(r=>({id:r.id,categoryId:r.category_id,month:r.month,budgeted:Number(r.budgeted)}));
-    state.debts=(dbs||[]).map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),paidAmount:Number(r.paid_amount||0),dueDate:r.due_date||'',type:r.type,status:r.status}));
-    state.receivables=(rcvs||[]).map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),collectedAmount:Number(r.collected_amount||0),expectedDate:r.expected_date||'',type:r.type,status:r.status}));
-    setSyncStatus('✓ sincronizado');
+    // — Módulo Control: cada tabla es independiente, un error no afecta a las demás —
+    if(!e3&&fcs)state.fixedCosts=fcs.map(r=>({id:r.id,name:r.name,amount:Number(r.amount),dueDay:r.due_day,icon:r.icon||'🔁',active:r.active!==false,createdAt:r.created_at}));
+    if(!e4&&frs)state.fixedCostRecords=frs.map(r=>({id:r.id,fixedCostId:r.fixed_cost_id,month:r.month,amount:Number(r.amount),status:r.status,paidAt:r.paid_at}));
+    if(!e5&&vbs)state.variableBudgets=vbs.map(r=>({id:r.id,categoryId:r.category_id,month:r.month,budgeted:Number(r.budgeted)}));
+    if(!e6&&dbs)state.debts=dbs.map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),paidAmount:Number(r.paid_amount||0),dueDate:r.due_date||'',type:r.type,status:r.status}));
+    if(!e7&&rcvs)state.receivables=rcvs.map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),collectedAmount:Number(r.collected_amount||0),expectedDate:r.expected_date||'',type:r.type,status:r.status}));
+    const anyError=e1||e2||e3||e4||e5||e6||e7;
+    setSyncStatus(anyError?'⚠ sync parcial':'✓ sincronizado');
     renderCurrentTab();
   }catch(err){
     clearTimeout(timeoutId);
-    console.error('syncFromSupabase error:',err);
+    console.error('[sync] error crítico:',err);
     // Restaurar snapshot — nunca dejar la app vacía por un error de red
     Object.assign(state,snap);
     setSyncStatus('⚠ sin sync');
@@ -674,7 +686,8 @@ async function ensureDefaultCategories(existing){
 
 // Supabase remote ops — todas incluyen user_id
 async function remoteInsertTx(tx){
-  if(!state.supabase||!state.user)return;
+  // Lanzar error explícito si no hay sesión — para que saveTransaction pueda hacer rollback
+  if(!state.supabase||!state.user)throw new Error('Sin sesión activa');
   const{error}=await state.supabase.from('transactions').insert({id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,note:tx.note,user_id:state.user.id});
   if(error)throw error;
 }
@@ -1112,10 +1125,24 @@ async function saveTransaction(){
   const amount=parseAmount(state.txAmountRaw);
   if(!amount||amount<=0){showToast('Ingresá un monto');return;}
   if(!state.txCategoryId){showToast('Elegí una categoría');return;}
+  if(!state.supabase||!state.user){showToast('Sin sesión activa. Iniciá sesión para guardar.');return;}
   const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,date:document.getElementById('txDate').value||todayIso(),note:document.getElementById('txNote').value.trim(),created_at:new Date().toISOString()};
+  // Optimistic update: mostrar inmediatamente en UI
   state.transactions.unshift(tx);
-  try{await remoteInsertTx(tx);}catch{showToast('Guardado (sync falló)');}
-  closeTxModal();renderCurrentTab();showToast(state.txType==='income'?'Ingreso agregado':'Egreso agregado');
+  renderCurrentTab();
+  try{
+    await remoteInsertTx(tx);
+    // Insert exitoso — cerrar modal y confirmar
+    closeTxModal();
+    showToast(state.txType==='income'?'✓ Ingreso guardado':'✓ Egreso guardado');
+  }catch(err){
+    // Rollback: si el insert falló, quitar la tx del estado local
+    // para que la UI no muestre datos falsos
+    state.transactions=state.transactions.filter(t=>t.id!==tx.id);
+    renderCurrentTab();
+    console.error('[saveTransaction] error:',err);
+    showToast('No se pudo guardar. Revisá tu conexión e intentá de nuevo.');
+  }
 }
 async function deleteTransaction(id){
   state.transactions=state.transactions.filter(t=>t.id!==id);
