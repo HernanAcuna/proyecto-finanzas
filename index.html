@@ -387,7 +387,13 @@ const state = {
 // ------- UTIL -------
 function currentMonthKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function todayIso(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);}
-function uid(){return 'x-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
+function uid(){
+  // Genera UUID v4 válido requerido por las columnas uuid de Supabase.
+  // crypto.randomUUID() está disponible en todos los navegadores modernos (Chrome 92+, Safari 15.4+, Firefox 95+).
+  // El fallback manual cubre entornos sin crypto.randomUUID (muy poco frecuente hoy).
+  if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
+}
 function fmtMoney(n){const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0}).format(abs);return `${n<0?'-':''}${state.settings.currencySymbol}${s}`;}
 function parseAmount(raw){if(!raw)return 0;const n=parseInt(raw.replace(/\D/g,''),10);return isNaN(n)?0:n;}
 function showToast(msg,ms=2400){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.add('hidden'),ms);}
@@ -608,15 +614,16 @@ async function syncFromSupabase(){
       timeoutId=setTimeout(()=>rej(new Error('Timeout de red (15 s). Revisá tu conexión.')),15000);
     });
     // Queries paralelas con filtro user_id — 7 tablas en simultáneo
-    const uid=state.user.id;
+    // IMPORTANTE: usamos 'userId' (no 'uid') para no shadear la función global uid()
+    const userId=state.user.id;
     const queryAll=Promise.all([
-      state.supabase.from('categories').select('*').eq('user_id',uid).order('type').order('name'),
-      state.supabase.from('transactions').select('*').eq('user_id',uid).order('date',{ascending:false}),
-      state.supabase.from('fixed_costs').select('*').eq('user_id',uid).order('created_at'),
-      state.supabase.from('fixed_cost_records').select('*').eq('user_id',uid),
-      state.supabase.from('variable_budgets').select('*').eq('user_id',uid),
-      state.supabase.from('debts').select('*').eq('user_id',uid).order('created_at'),
-      state.supabase.from('receivables').select('*').eq('user_id',uid).order('created_at'),
+      state.supabase.from('categories').select('*').eq('user_id',userId).order('type').order('name'),
+      state.supabase.from('transactions').select('*').eq('user_id',userId).order('date',{ascending:false}),
+      state.supabase.from('fixed_costs').select('*').eq('user_id',userId).order('created_at'),
+      state.supabase.from('fixed_cost_records').select('*').eq('user_id',userId),
+      state.supabase.from('variable_budgets').select('*').eq('user_id',userId),
+      state.supabase.from('debts').select('*').eq('user_id',userId).order('created_at'),
+      state.supabase.from('receivables').select('*').eq('user_id',userId).order('created_at'),
     ]);
     const[{data:cats,error:e1},{data:txs,error:e2},{data:fcs,error:e3},{data:frs,error:e4},{data:vbs,error:e5},{data:dbs,error:e6},{data:rcvs,error:e7}]=await Promise.race([queryAll,timeout]);
     clearTimeout(timeoutId);
@@ -682,6 +689,42 @@ async function ensureDefaultCategories(existing){
   const{data,error}=await state.supabase.from('categories').insert(rows).select();
   if(error){console.error('Error seeding categories:',error);return[];}
   return(data||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+}
+
+// ------- DIAGNÓSTICO DE ERRORES SUPABASE -------
+// Traduce el error real de Supabase a un mensaje accionable para el usuario.
+// Permite distinguir auth, RLS, tipo de dato, payload y red — sin mensajes engañosos.
+function diagnoseSaveError(err){
+  if(!err)return'Error desconocido al guardar.';
+  const msg=(err.message||'').toLowerCase();
+  const code=err.code||'';
+  const details=(err.details||'').toLowerCase();
+  // 1. UUID inválido — causa raíz histórica de este bug
+  if(msg.includes('invalid input syntax for type uuid')||msg.includes('invalid uuid'))
+    return`Error interno: ID inválido (${err.message}). Actualizá la app.`;
+  // 2. Error de autenticación / sesión expirada
+  if(code==='401'||msg.includes('jwt')||msg.includes('token')||msg.includes('not authenticated')||msg.includes('anon')||msg.includes('session'))
+    return'Tu sesión expiró. Cerrá sesión e iniciá de nuevo.';
+  // 3. RLS / permisos — INSERT bloqueado por política
+  if(code==='42501'||msg.includes('row-level security')||msg.includes('rls')||msg.includes('policy')||msg.includes('permission denied'))
+    return`Sin permiso para guardar (RLS). Revisá las políticas de Supabase. (${code})`;
+  // 4. Foreign key — categoría inexistente o inválida
+  if(code==='23503'||msg.includes('foreign key')||msg.includes('violates foreign key'))
+    return'Categoría inválida o inexistente. Seleccioná otra e intentá de nuevo.';
+  // 5. NOT NULL / campo obligatorio faltante
+  if(code==='23502'||msg.includes('not-null')||msg.includes('null value in column'))
+    return`Falta un campo obligatorio: ${err.message}`;
+  // 6. Tipo de dato incorrecto
+  if(code==='22P02'||msg.includes('invalid input syntax')||msg.includes('invalid value'))
+    return`Tipo de dato incorrecto: ${err.message}`;
+  // 7. Unique constraint
+  if(code==='23505'||msg.includes('unique constraint')||msg.includes('duplicate key'))
+    return'Ya existe un registro con esos datos.';
+  // 8. Red / timeout
+  if(msg.includes('fetch')||msg.includes('network')||msg.includes('timeout')||msg.includes('failed to fetch'))
+    return'Error de conexión. Revisá tu red e intentá de nuevo.';
+  // 9. Fallback — mostrar el mensaje real, no uno genérico
+  return`Error al guardar: ${err.message||JSON.stringify(err)}`;
 }
 
 // Supabase remote ops — todas incluyen user_id
@@ -1127,21 +1170,26 @@ async function saveTransaction(){
   if(!state.txCategoryId){showToast('Elegí una categoría');return;}
   if(!state.supabase||!state.user){showToast('Sin sesión activa. Iniciá sesión para guardar.');return;}
   const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,date:document.getElementById('txDate').value||todayIso(),note:document.getElementById('txNote').value.trim(),created_at:new Date().toISOString()};
-  // Optimistic update: mostrar inmediatamente en UI
+  // Optimistic update: mostrar en UI antes de confirmar Supabase
   state.transactions.unshift(tx);
   renderCurrentTab();
   try{
     await remoteInsertTx(tx);
-    // Insert exitoso — cerrar modal y confirmar
+    // ✓ Insert confirmado por Supabase — recién ahora cerramos modal y mostramos éxito
     closeTxModal();
-    showToast(state.txType==='income'?'✓ Ingreso guardado':'✓ Egreso guardado');
+    showToast(state.txType==='income'?'✓ Ingreso guardado':'✓ Egreso guardado',2800);
   }catch(err){
-    // Rollback: si el insert falló, quitar la tx del estado local
-    // para que la UI no muestre datos falsos
+    // Rollback completo: Supabase rechazó el insert → sacamos la tx del estado local.
+    // La UI nunca queda mostrando datos que no se guardaron.
     state.transactions=state.transactions.filter(t=>t.id!==tx.id);
     renderCurrentTab();
-    console.error('[saveTransaction] error:',err);
-    showToast('No se pudo guardar. Revisá tu conexión e intentá de nuevo.');
+    // Log detallado del error real de Supabase (visible en DevTools → Console)
+    console.error('[saveTransaction] INSERT fallido —',{
+      error:err,code:err?.code,message:err?.message,details:err?.details,hint:err?.hint,
+      payload:{id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,user_id:state.user?.id}
+    });
+    // Mensaje preciso al usuario según el tipo de error real
+    showToast(diagnoseSaveError(err),4000);
   }
 }
 async function deleteTransaction(id){
