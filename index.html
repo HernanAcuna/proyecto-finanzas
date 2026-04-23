@@ -243,9 +243,8 @@
     </div>
     <div class="p-4 grid grid-cols-2 gap-3">
       <button class="sel-opt" data-type="fixed"><span class="sel-opt-icon" style="background:#f59e0b22;">🔁</span>Gasto fijo</button>
-      <button class="sel-opt" data-type="variable"><span class="sel-opt-icon" style="background:#4f8cff22;">📊</span>Presupuesto variable</button>
       <button class="sel-opt" data-type="debt"><span class="sel-opt-icon" style="background:#ef444422;">💳</span>Deuda</button>
-      <button class="sel-opt" data-type="receivable"><span class="sel-opt-icon" style="background:#22c55e22;">🤝</span>Por cobrar</button>
+      <button class="sel-opt col-span-2" data-type="receivable"><span class="sel-opt-icon" style="background:#22c55e22;">🤝</span>Por cobrar</button>
     </div>
     <div class="px-4 pb-4"><button id="selectorCancelBtn" class="w-full py-3 rounded-xl bg-card text-sm">Cancelar</button></div>
   </div>
@@ -260,8 +259,7 @@
     </div>
     <div class="p-4 space-y-3 overflow-y-auto flex-1">
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Nombre</span><input id="fcName" type="text" class="w-full" placeholder="Ej: Alquiler" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto</span><input id="fcAmount" type="number" min="0" class="w-full" placeholder="0" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Día de vencimiento (1–31)</span><input id="fcDueDay" type="number" min="1" max="31" class="w-full" placeholder="10" /></label>
+      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto</span><input id="fcAmount" type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*" class="w-full" placeholder="0" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ícono</span><input id="fcIcon" type="text" maxlength="4" class="w-full" placeholder="🏠" /></label>
       <label class="flex items-center gap-3 text-sm cursor-pointer select-none"><input id="fcActive" type="checkbox" checked class="w-4 h-4 accent-brand" /><span>Activo (se genera cada mes)</span></label>
     </div>
@@ -302,10 +300,9 @@
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Persona / Entidad</span><input id="dbName" type="text" class="w-full" placeholder="Ej: Banco Galicia" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Concepto</span><input id="dbConcept" type="text" class="w-full" placeholder="Ej: Préstamo personal" /></label>
       <div class="grid grid-cols-2 gap-2">
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="dbTotal" type="number" min="0" class="w-full" /></label>
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya pagado</span><input id="dbPaid" type="number" min="0" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="dbTotal" type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya pagado</span><input id="dbPaid" type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*" class="w-full" /></label>
       </div>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Fecha límite</span><input id="dbDue" type="date" class="w-full" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span><select id="dbType" class="w-full"><option value="loan">Préstamo</option><option value="card">Tarjeta</option><option value="current_account">Cuenta corriente</option><option value="other">Otro</option></select></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span><select id="dbStatus" class="w-full"><option value="pending">Pendiente</option><option value="partial">Parcial</option><option value="paid">Saldado</option></select></label>
     </div>
@@ -327,12 +324,9 @@
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Persona / Entidad</span><input id="rcvName" type="text" class="w-full" placeholder="Ej: Juan Pérez" /></label>
       <label class="block text-sm"><span class="block text-xs text-muted mb-1">Concepto</span><input id="rcvConcept" type="text" class="w-full" placeholder="Ej: Préstamo" /></label>
       <div class="grid grid-cols-2 gap-2">
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="rcvTotal" type="number" min="0" class="w-full" /></label>
-        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya cobrado</span><input id="rcvCollected" type="number" min="0" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Monto total</span><input id="rcvTotal" type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*" class="w-full" /></label>
+        <label class="block text-sm"><span class="block text-xs text-muted mb-1">Ya cobrado</span><input id="rcvCollected" type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*" class="w-full" /></label>
       </div>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Fecha estimada</span><input id="rcvDate" type="date" class="w-full" /></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Tipo</span><select id="rcvType" class="w-full"><option value="loan">Préstamo</option><option value="current_account">Cuenta corriente</option><option value="sale">Venta</option><option value="other">Otro</option></select></label>
-      <label class="block text-sm"><span class="block text-xs text-muted mb-1">Estado</span><select id="rcvStatus" class="w-full"><option value="pending">Pendiente</option><option value="partial">Parcial</option><option value="collected">Cobrado</option></select></label>
     </div>
     <div class="p-4 border-t border-line flex gap-2 flex-shrink-0">
       <button id="rcvModalCancel" class="flex-1 py-3 rounded-xl bg-card">Cancelar</button>
@@ -942,7 +936,7 @@ function viewControl(){
   const grid=document.createElement('div');grid.className='ctrl-2col space-y-4';
   const left=document.createElement('div');left.className='space-y-4';
   const right=document.createElement('div');right.className='space-y-4';
-  left.appendChild(buildFixedSection());left.appendChild(buildVariableSection());
+  left.appendChild(buildFixedSection());
   right.appendChild(buildDebtSection());right.appendChild(buildReceivableSection());
   grid.appendChild(left);grid.appendChild(right);root.appendChild(grid);
   hdr.querySelector('#ctrlPrev').onclick=()=>{const[y,m]=state.controlMonth.split('-').map(Number);state.controlMonth=currentMonthKey(new Date(y,m-2,1));renderCurrentTab();};
@@ -955,15 +949,11 @@ function buildControlSummary(){
   const recs=state.fixedCostRecords.filter(r=>r.month===mk);
   const fixedTotal=recs.reduce((s,r)=>s+r.amount,0);
   const fixedPending=recs.filter(r=>r.status==='pending').reduce((s,r)=>s+r.amount,0);
-  const buds=state.variableBudgets.filter(b=>b.month===mk);
-  const varSpent=buds.reduce((s,b)=>s+getActualSpending(b.categoryId,mk),0);
-  const varBudgeted=buds.reduce((s,b)=>s+b.budgeted,0);
   const debtP=state.debts.filter(d=>d.status!=='paid').reduce((s,d)=>s+(d.totalAmount-d.paidAmount),0);
   const recvP=state.receivables.filter(r=>r.status!=='collected').reduce((s,r)=>s+(r.totalAmount-r.collectedAmount),0);
-  const wrap=document.createElement('div');wrap.className='grid grid-cols-2 gap-2 ctrl-grid-4';
+  const wrap=document.createElement('div');wrap.className='grid grid-cols-3 gap-2';
   wrap.innerHTML=`
-    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Fijos del mes</div><div class="font-semibold">${fmtMoney(fixedTotal)}</div><div class="text-xs mt-1 ${fixedPending>0?'text-yellow-400':'text-income'}">${fixedPending>0?fmtMoney(fixedPending)+' pendiente':'Todo pagado'}</div></div>
-    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Variables del mes</div><div class="font-semibold">${fmtMoney(varSpent)}</div><div class="text-xs text-muted mt-1">de ${fmtMoney(varBudgeted)} presup.</div></div>
+    <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Fijos del mes</div><div class="font-semibold">${fmtMoney(fixedTotal)}</div><div class="text-xs mt-1 ${fixedPending>0?'text-yellow-400':'text-income'}">${fixedPending>0?fmtMoney(fixedPending)+' pend.':'Todo pagado'}</div></div>
     <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Debo</div><div class="font-semibold ${debtP>0?'text-expense':''}">${fmtMoney(debtP)}</div><div class="text-xs text-muted mt-1">${state.debts.filter(d=>d.status!=='paid').length} deuda(s)</div></div>
     <div class="rounded-xl bg-card border border-line p-3"><div class="text-xs text-muted mb-1">Me deben</div><div class="font-semibold ${recvP>0?'text-income':''}">${fmtMoney(recvP)}</div><div class="text-xs text-muted mt-1">${state.receivables.filter(r=>r.status!=='collected').length} pendiente(s)</div></div>`;
   return wrap;
@@ -997,7 +987,7 @@ function buildFixedItem(rec,fc){
   const el=document.createElement('div');el.className='ctrl-item';
   el.innerHTML=`
     <button class="toggle-paid ${paid?'paid':''}" title="${paid?'Marcar pendiente':'Marcar pagado'}">${paid?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`:''}</button>
-    <div class="flex-1 min-w-0"><div class="text-sm font-medium ${paid?'line-through text-muted':''}">${fc.icon||'🔁'} ${fc.name}</div><div class="text-xs text-muted">Vence día ${fc.dueDay}</div></div>
+    <div class="flex-1 min-w-0"><div class="text-sm font-medium ${paid?'line-through text-muted':''}">${fc.icon||'🔁'} ${fc.name}</div></div>
     <span class="font-semibold text-sm ${paid?'text-muted':''} mr-1">${fmtMoney(rec.amount)}</span>
     <button class="ctrl-iconbtn edit-btn">${ICON_EDIT}</button>
     <button class="ctrl-iconbtn del del-btn">${ICON_DEL}</button>`;
@@ -1314,22 +1304,24 @@ let fixedEditing=null;
 function openFixedModal(fc=null){
   fixedEditing=fc;document.getElementById('fixedModalTitle').textContent=fc?'Editar gasto fijo':'Nuevo gasto fijo';
   document.getElementById('fcName').value=fc?.name||'';document.getElementById('fcAmount').value=fc?.amount||'';
-  document.getElementById('fcDueDay').value=fc?.dueDay||'';document.getElementById('fcIcon').value=fc?.icon||'🔁';
+  document.getElementById('fcIcon').value=fc?.icon||'🔁';
   document.getElementById('fcActive').checked=fc?.active!==false;closeItemSelector();
   const m=document.getElementById('fixedModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeFixedModal(){const m=document.getElementById('fixedModal');m.classList.add('hidden');m.classList.remove('flex');fixedEditing=null;}
 function saveFixedCost(){
-  const name=document.getElementById('fcName').value.trim(),amount=parseFloat(document.getElementById('fcAmount').value)||0;
-  const dueDay=parseInt(document.getElementById('fcDueDay').value)||1,icon=document.getElementById('fcIcon').value.trim()||'🔁',active=document.getElementById('fcActive').checked;
+  const name=document.getElementById('fcName').value.trim();
+  const amount=Math.round(parseFloat(document.getElementById('fcAmount').value)||0);
+  const icon=document.getElementById('fcIcon').value.trim()||'🔁';
+  const active=document.getElementById('fcActive').checked;
   if(!name){showToast('Ingresá un nombre');return;}if(amount<=0){showToast('Ingresá un monto válido');return;}
   if(fixedEditing){
-    const prev=fixedEditing.amount;Object.assign(fixedEditing,{name,amount,dueDay,icon,active});
+    const prev=fixedEditing.amount;Object.assign(fixedEditing,{name,amount,icon,active});
     remoteUpsertFC(fixedEditing).catch(e=>console.error('Error guardando gasto fijo:',e));
     if(prev!==amount){const rec=state.fixedCostRecords.find(r=>r.fixedCostId===fixedEditing.id&&r.month===state.controlMonth&&r.status==='pending');if(rec){rec.amount=amount;remoteUpsertFR(rec).catch(()=>{});}}
     showToast('Gasto fijo actualizado');
   }else{
-    const fc={id:uid(),name,amount,dueDay,icon,active,createdAt:todayIso()};state.fixedCosts.push(fc);
+    const fc={id:uid(),name,amount,dueDay:1,icon,active,createdAt:todayIso()};state.fixedCosts.push(fc);
     remoteUpsertFC(fc).catch(e=>console.error('Error guardando gasto fijo:',e));
     ensureFixedRecords(state.controlMonth);showToast('Gasto fijo creado');
   }
@@ -1360,17 +1352,24 @@ function openDebtModal(d=null){
   debtEditing=d;document.getElementById('debtModalTitle').textContent=d?'Editar deuda':'Nueva deuda';
   document.getElementById('dbName').value=d?.name||'';document.getElementById('dbConcept').value=d?.concept||'';
   document.getElementById('dbTotal').value=d?.totalAmount||'';document.getElementById('dbPaid').value=d?.paidAmount||0;
-  document.getElementById('dbDue').value=d?.dueDate||'';document.getElementById('dbType').value=d?.type||'loan';document.getElementById('dbStatus').value=d?.status||'pending';
+  document.getElementById('dbType').value=d?.type||'loan';document.getElementById('dbStatus').value=d?.status||'pending';
   closeItemSelector();const m=document.getElementById('debtModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeDebtModal(){const m=document.getElementById('debtModal');m.classList.add('hidden');m.classList.remove('flex');debtEditing=null;}
 function saveDebt(){
   const name=document.getElementById('dbName').value.trim(),concept=document.getElementById('dbConcept').value.trim();
-  const totalAmount=parseFloat(document.getElementById('dbTotal').value)||0,paidAmount=parseFloat(document.getElementById('dbPaid').value)||0;
-  const dueDate=document.getElementById('dbDue').value,type=document.getElementById('dbType').value,status=document.getElementById('dbStatus').value;
+  const totalAmount=Math.round(parseFloat(document.getElementById('dbTotal').value)||0);
+  const paidAmount=Math.round(parseFloat(document.getElementById('dbPaid').value)||0);
+  const type=document.getElementById('dbType').value,status=document.getElementById('dbStatus').value;
   if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(paidAmount>totalAmount){showToast('El monto pagado no puede superar el total');return;}
-  if(debtEditing){Object.assign(debtEditing,{name,concept,totalAmount,paidAmount,dueDate,type,status});remoteUpsertDebt(debtEditing).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda actualizada');}
-  else{const d={id:uid(),name,concept,totalAmount,paidAmount,dueDate,type,status};state.debts.push(d);remoteUpsertDebt(d).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda registrada');}
+  if(debtEditing){
+    // dueDate: preservar el valor existente — ya no se edita desde el formulario
+    Object.assign(debtEditing,{name,concept,totalAmount,paidAmount,type,status});
+    remoteUpsertDebt(debtEditing).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda actualizada');
+  }else{
+    const d={id:uid(),name,concept,totalAmount,paidAmount,dueDate:'',type,status};
+    state.debts.push(d);remoteUpsertDebt(d).catch(e=>console.error('Error guardando deuda:',e));showToast('Deuda registrada');
+  }
   closeDebtModal();renderCurrentTab();
 }
 
@@ -1379,17 +1378,23 @@ function openReceivableModal(r=null){
   rcvEditing=r;document.getElementById('rcvModalTitle').textContent=r?'Editar cobro':'Nuevo cobro pendiente';
   document.getElementById('rcvName').value=r?.name||'';document.getElementById('rcvConcept').value=r?.concept||'';
   document.getElementById('rcvTotal').value=r?.totalAmount||'';document.getElementById('rcvCollected').value=r?.collectedAmount||0;
-  document.getElementById('rcvDate').value=r?.expectedDate||'';document.getElementById('rcvType').value=r?.type||'loan';document.getElementById('rcvStatus').value=r?.status||'pending';
   closeItemSelector();const m=document.getElementById('rcvModal');m.classList.remove('hidden');m.classList.add('flex');
 }
 function closeReceivableModal(){const m=document.getElementById('rcvModal');m.classList.add('hidden');m.classList.remove('flex');rcvEditing=null;}
 function saveReceivable(){
   const name=document.getElementById('rcvName').value.trim(),concept=document.getElementById('rcvConcept').value.trim();
-  const totalAmount=parseFloat(document.getElementById('rcvTotal').value)||0,collectedAmount=parseFloat(document.getElementById('rcvCollected').value)||0;
-  const expectedDate=document.getElementById('rcvDate').value,type=document.getElementById('rcvType').value,status=document.getElementById('rcvStatus').value;
+  const totalAmount=Math.round(parseFloat(document.getElementById('rcvTotal').value)||0);
+  const collectedAmount=Math.round(parseFloat(document.getElementById('rcvCollected').value)||0);
   if(!name){showToast('Ingresá un nombre');return;}if(totalAmount<=0){showToast('Ingresá un monto válido');return;}if(collectedAmount>totalAmount){showToast('El monto cobrado no puede superar el total');return;}
-  if(rcvEditing){Object.assign(rcvEditing,{name,concept,totalAmount,collectedAmount,expectedDate,type,status});remoteUpsertRCV(rcvEditing).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro actualizado');}
-  else{const r={id:uid(),name,concept,totalAmount,collectedAmount,expectedDate,type,status};state.receivables.push(r);remoteUpsertRCV(r).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro registrado');}
+  if(rcvEditing){
+    // Preservar type, status y expectedDate existentes — ya no se editan desde el formulario
+    Object.assign(rcvEditing,{name,concept,totalAmount,collectedAmount});
+    remoteUpsertRCV(rcvEditing).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro actualizado');
+  }else{
+    // Nuevo cobro: status='pending' por defecto, type='other', sin fecha estimada
+    const r={id:uid(),name,concept,totalAmount,collectedAmount,expectedDate:null,type:'other',status:'pending'};
+    state.receivables.push(r);remoteUpsertRCV(r).catch(e=>console.error('Error guardando cobro:',e));showToast('Cobro registrado');
+  }
   closeReceivableModal();renderCurrentTab();
 }
 
