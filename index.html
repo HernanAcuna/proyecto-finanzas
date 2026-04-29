@@ -6,7 +6,6 @@
 <title>Finanzas Personales</title>
 <link rel="icon" type="image/svg+xml" href="icon.svg"/>
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png"/>
-<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png"/>
 <meta name="theme-color" content="#3D2485"/>
 <link rel="manifest" href="manifest.json"/>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -384,6 +383,7 @@ const state = {
   txModalOpen:false, txType:'expense', txAmountRaw:'', txCategoryId:null,
   dashMonth:currentMonthKey(), dashChartType:'expense', chart:null,
   fixedCosts:[], fixedCostRecords:[], variableBudgets:[], debts:[], receivables:[],
+  pendingSync:[],
   controlMonth:currentMonthKey(), ctrlSections:{fixed:true,variable:true,debt:true,recv:true},
 };
 
@@ -469,32 +469,22 @@ function loadSettings(){
 }
 const saveLocalSettings=()=>localStorage.setItem(STORAGE_KEYS.settings,JSON.stringify(state.settings));
 
-// ------- LOCAL CACHE (snapshot local-first) -------
+// ------- LOCAL CACHE -------
 function saveLocalCache(){
   try{
-    const snapshot={
-      userId:state.user?.id,
-      ts:Date.now(),
-      categories:state.categories,
-      transactions:state.transactions,
-      fixedCosts:state.fixedCosts,
-      fixedCostRecords:state.fixedCostRecords,
-      variableBudgets:state.variableBudgets,
-      debts:state.debts,
-      receivables:state.receivables,
-    };
-    localStorage.setItem(CACHE_KEY,JSON.stringify(snapshot));
-  }catch(e){console.warn('[cache] no se pudo guardar:',e);}
+    localStorage.setItem(CACHE_KEY,JSON.stringify({
+      userId:state.user?.id,ts:Date.now(),
+      categories:state.categories,transactions:state.transactions,
+      fixedCosts:state.fixedCosts,fixedCostRecords:state.fixedCostRecords,
+      variableBudgets:state.variableBudgets,debts:state.debts,receivables:state.receivables,
+    }));
+  }catch(e){console.warn('[cache] save error:',e);}
 }
-function loadLocalCache(){
-  try{
-    const raw=localStorage.getItem(CACHE_KEY);
-    if(!raw)return null;
-    return JSON.parse(raw);
-  }catch{return null;}
-}
-function clearLocalCache(){
-  try{localStorage.removeItem(CACHE_KEY);}catch{}
+function loadLocalCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.parse(r):null;}catch{return null;}}
+function clearLocalCache(){try{localStorage.removeItem(CACHE_KEY);}catch{}}
+function updatePendingBadge(){
+  const n=state.pendingSync?.length||0;
+  document.getElementById('syncStatus').textContent=n===1?'1 cambio pendiente':n>1?`${n} cambios pendientes`:'';
 }
 
 // ------- SUPABASE INIT -------
@@ -615,13 +605,14 @@ async function onSession(session){
   state.user=session.user;
   showApp();
   setTab(state.tab||'home');
-  await syncFromSupabase(); // carga todo: categorías, transacciones y módulo Control
+  await flushPendingSync(); // subir pendientes antes de sync
+  await syncFromSupabase();
 }
 
 function onSignOut(){
-  clearLocalCache(); // limpiar cache al cerrar sesión
+  clearLocalCache();
   state.user=null;
-  state.transactions=[];state.categories=[];
+  state.transactions=[];state.categories=[];state.pendingSync=[];
   state.fixedCosts=[];state.fixedCostRecords=[];
   state.variableBudgets=[];state.debts=[];state.receivables=[];
   showAuthScreen();
@@ -692,7 +683,13 @@ async function syncFromSupabase(){
     }
     // — Transacciones (solo actualizar si la query tuvo éxito) —
     if(!e2&&txs){
-      state.transactions=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
+      const remoteTxs=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
+      const remoteIds=new Set(remoteTxs.map(t=>t.id));
+      // Limpiar pendingSync de items que Supabase ya tiene
+      state.pendingSync=state.pendingSync.filter(p=>!remoteIds.has(p.id));
+      // Conservar txs locales pendientes que aún no llegaron al server
+      const stillPending=state.transactions.filter(t=>t._pending&&!remoteIds.has(t.id));
+      state.transactions=[...remoteTxs,...stillPending].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     }
     // — Módulo Control: cada tabla es independiente, un error no afecta a las demás —
     if(!e3&&fcs)state.fixedCosts=fcs.map(r=>({id:r.id,name:r.name,amount:Number(r.amount),dueDay:r.due_day,icon:r.icon||'🔁',active:r.active!==false,createdAt:r.created_at}));
@@ -701,8 +698,8 @@ async function syncFromSupabase(){
     if(!e6&&dbs)state.debts=dbs.map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),paidAmount:Number(r.paid_amount||0),dueDate:r.due_date||'',type:r.type,status:r.status}));
     if(!e7&&rcvs)state.receivables=rcvs.map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),collectedAmount:Number(r.collected_amount||0),expectedDate:r.expected_date||'',type:r.type,status:r.status}));
     const anyError=e1||e2||e3||e4||e5||e6||e7;
-    setSyncStatus(anyError?'⚠ sync parcial':'✓ sincronizado');
-    if(!anyError)saveLocalCache(); // guardar snapshot solo si todo fue bien
+    if(!anyError){setSyncStatus('✓ sincronizado');saveLocalCache();}else setSyncStatus('⚠ sync parcial');
+    if(state.pendingSync.length)updatePendingBadge();
     renderCurrentTab();
   }catch(err){
     clearTimeout(timeoutId);
@@ -1254,33 +1251,62 @@ async function saveTransaction(){
   const amount=parseAmount(state.txAmountRaw);
   if(!amount||amount<=0){showToast('Ingresá un monto');return;}
   if(!state.txCategoryId){showToast('Elegí una categoría');return;}
-  if(!state.supabase||!state.user){showToast('Sin sesión activa. Iniciá sesión para guardar.');return;}
-  const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,date:document.getElementById('txDate').value||todayIso(),note:document.getElementById('txNote').value.trim(),created_at:new Date().toISOString()};
-  // Optimistic update: mostrar en UI antes de confirmar Supabase
+  const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,
+    date:document.getElementById('txDate').value||todayIso(),
+    note:document.getElementById('txNote').value.trim(),
+    created_at:new Date().toISOString(),_pending:true};
+  // 1. UI inmediata — sin esperar Supabase
   state.transactions.unshift(tx);
   renderCurrentTab();
-  try{
-    await remoteInsertTx(tx);
-    // ✓ Insert confirmado por Supabase — recién ahora cerramos modal y mostramos éxito
-    closeTxModal();
-    showToast(state.txType==='income'?'✓ Ingreso guardado':'✓ Egreso guardado',2800);
-  }catch(err){
-    // Rollback completo: Supabase rechazó el insert → sacamos la tx del estado local.
-    // La UI nunca queda mostrando datos que no se guardaron.
-    state.transactions=state.transactions.filter(t=>t.id!==tx.id);
-    renderCurrentTab();
-    // Log detallado del error real de Supabase (visible en DevTools → Console)
-    console.error('[saveTransaction] INSERT fallido —',{
-      error:err,code:err?.code,message:err?.message,details:err?.details,hint:err?.hint,
-      payload:{id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,user_id:state.user?.id}
-    });
-    // Mensaje preciso al usuario según el tipo de error real
-    showToast(diagnoseSaveError(err),4000);
+  closeTxModal();
+  showToast(state.txType==='income'?'✓ Ingreso guardado':'✓ Egreso guardado',2800);
+  saveLocalCache();
+  // 2. Sync en background
+  if(state.supabase&&state.user){
+    try{
+      await remoteInsertTx(tx);
+      state.transactions=state.transactions.map(t=>t.id===tx.id?{...t,_pending:false}:t);
+      saveLocalCache();
+    }catch(err){
+      console.warn('[saveTransaction] en cola:',err?.message);
+      state.pendingSync.push({...tx,user_id:state.user.id});
+      updatePendingBadge();
+      saveLocalCache();
+    }
+  }else{
+    // Sin sesión aún — encolar para cuando auth esté lista
+    state.pendingSync.push({...tx,user_id:null});
+    updatePendingBadge();
+    saveLocalCache();
   }
 }
 async function deleteTransaction(id){
   state.transactions=state.transactions.filter(t=>t.id!==id);
-  try{await remoteDeleteTx(id);}catch{}renderCurrentTab();
+  state.pendingSync=state.pendingSync.filter(p=>p.id!==id);
+  saveLocalCache();
+  renderCurrentTab();
+  if(state.supabase&&state.user){
+    try{await remoteDeleteTx(id);}catch(e){console.warn('[delete] fallo remoto:',e?.message);}
+  }
+}
+
+// Sube a Supabase las txs que quedaron en cola (sin sesión o sin red)
+async function flushPendingSync(){
+  if(!state.supabase||!state.user||!state.pendingSync.length)return;
+  const queue=[...state.pendingSync];
+  const failed=[];
+  for(const tx of queue){
+    try{
+      await remoteInsertTx({...tx,user_id:state.user.id});
+      state.transactions=state.transactions.map(t=>t.id===tx.id?{...t,_pending:false}:t);
+    }catch(err){
+      console.warn('[flush] falló:',tx.id,err?.message);
+      failed.push({...tx,user_id:state.user.id});
+    }
+  }
+  state.pendingSync=failed;
+  if(failed.length)updatePendingBadge();
+  saveLocalCache();
 }
 
 // ------- CATEGORY MODAL -------
@@ -1552,62 +1578,52 @@ async function boot(){
   loadSettings();
   if(!initSupabase()){showAuthScreen();return;}
 
-  // ── LOCAL-FIRST: mostrar cache inmediatamente sin esperar a Supabase ──
+  // ── LOCAL-FIRST: mostrar cache antes de confirmar auth ──
   const cache=loadLocalCache();
-  if(cache&&cache.userId&&cache.categories){
-    // Hidratar estado con datos del cache
-    state.categories      = cache.categories      || [];
-    state.transactions    = cache.transactions    || [];
-    state.fixedCosts      = cache.fixedCosts      || [];
-    state.fixedCostRecords= cache.fixedCostRecords|| [];
-    state.variableBudgets = cache.variableBudgets || [];
-    state.debts           = cache.debts           || [];
-    state.receivables     = cache.receivables     || [];
-    // Mostrar la app con datos del cache — sin flash de login
+  if(cache&&cache.userId&&cache.categories?.length){
+    state.categories      =cache.categories      ||[];
+    state.transactions    =cache.transactions    ||[];
+    state.fixedCosts      =cache.fixedCosts      ||[];
+    state.fixedCostRecords=cache.fixedCostRecords||[];
+    state.variableBudgets =cache.variableBudgets ||[];
+    state.debts           =cache.debts           ||[];
+    state.receivables     =cache.receivables     ||[];
     showApp();
     setTab(state.tab||'home');
     setSyncStatus('actualizando…');
   }else{
-    // Sin cache: mostrar pantalla de login mientras resolvemos la sesión
     showAuthScreen();
   }
 
-  // Timeout de 5 s: si Supabase no responde INITIAL_SESSION, ir a login
+  // Timeout 5 s: si Supabase no confirma sesión, ir a login
   let authResolved=false;
   const authTimeout=setTimeout(()=>{
-    if(!authResolved){
-      console.warn('[boot] auth timeout — mostrando login');
-      showAuthScreen();
-    }
+    if(!authResolved){console.warn('[boot] auth timeout');showAuthScreen();}
   },5000);
 
-  // SOLO onAuthStateChange — dispara INITIAL_SESSION al arrancar
   state.supabase.auth.onAuthStateChange(async(event,session)=>{
     if(event==='INITIAL_SESSION'||event==='SIGNED_IN'){
-      authResolved=true;
-      clearTimeout(authTimeout);
+      authResolved=true;clearTimeout(authTimeout);
       if(session){
-        // Si había cache de otro usuario, limpiarla antes de sincronizar
+        // Si el cache era de otro usuario, limpiarlo
         if(cache&&cache.userId&&cache.userId!==session.user.id){
           clearLocalCache();
-          state.categories=[];state.transactions=[];
+          state.categories=[];state.transactions=[];state.pendingSync=[];
           state.fixedCosts=[];state.fixedCostRecords=[];
           state.variableBudgets=[];state.debts=[];state.receivables=[];
         }
         state.user=session.user;
-        showApp();
-        setTab(state.tab||'home');
-        await syncFromSupabase(); // sync en background — ya hay datos en pantalla
+        showApp();setTab(state.tab||'home');
+        await flushPendingSync();
+        await syncFromSupabase();
       }else{
-        // No hay sesión activa → limpiar cache y mostrar login
         clearLocalCache();
         onSignOut();
       }
     }else if(event==='TOKEN_REFRESHED'&&session&&state.user){
       state.user=session.user;
     }else if(event==='SIGNED_OUT'){
-      authResolved=true;
-      clearTimeout(authTimeout);
+      authResolved=true;clearTimeout(authTimeout);
       onSignOut();
     }
   });
