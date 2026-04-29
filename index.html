@@ -359,6 +359,7 @@ const SUPABASE_URL     = 'https://ufgbjanvreklpxhttsdg.supabase.co';
 const SUPABASE_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmZ2JqYW52cmVrbHB4aHR0c2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTExMjQsImV4cCI6MjA5MjM2NzEyNH0.ooRQtBIP9uWaEcdrhF-SabD7VYl4i1pN2WbppdQMlOk';
 
 const STORAGE_KEYS = { txs:'fin_transactions', cats:'fin_categories', settings:'fin_settings' };
+const CACHE_KEY = 'fin_snapshot_v1';
 const SYSTEM_CATEGORY_NAMES = ['Otros Ing.','Otros Eg.'];
 
 const DEFAULT_CATEGORIES = [
@@ -462,6 +463,34 @@ function loadSettings(){
   try{state.settings=Object.assign(state.settings,JSON.parse(localStorage.getItem(STORAGE_KEYS.settings)||'{}'));}catch{}
 }
 const saveLocalSettings=()=>localStorage.setItem(STORAGE_KEYS.settings,JSON.stringify(state.settings));
+
+// ------- LOCAL CACHE (snapshot local-first) -------
+function saveLocalCache(){
+  try{
+    const snapshot={
+      userId:state.user?.id,
+      ts:Date.now(),
+      categories:state.categories,
+      transactions:state.transactions,
+      fixedCosts:state.fixedCosts,
+      fixedCostRecords:state.fixedCostRecords,
+      variableBudgets:state.variableBudgets,
+      debts:state.debts,
+      receivables:state.receivables,
+    };
+    localStorage.setItem(CACHE_KEY,JSON.stringify(snapshot));
+  }catch(e){console.warn('[cache] no se pudo guardar:',e);}
+}
+function loadLocalCache(){
+  try{
+    const raw=localStorage.getItem(CACHE_KEY);
+    if(!raw)return null;
+    return JSON.parse(raw);
+  }catch{return null;}
+}
+function clearLocalCache(){
+  try{localStorage.removeItem(CACHE_KEY);}catch{}
+}
 
 // ------- SUPABASE INIT -------
 function initSupabase(){
@@ -585,6 +614,7 @@ async function onSession(session){
 }
 
 function onSignOut(){
+  clearLocalCache(); // limpiar cache al cerrar sesión
   state.user=null;
   state.transactions=[];state.categories=[];
   state.fixedCosts=[];state.fixedCostRecords=[];
@@ -667,6 +697,7 @@ async function syncFromSupabase(){
     if(!e7&&rcvs)state.receivables=rcvs.map(r=>({id:r.id,name:r.name,concept:r.concept||'',totalAmount:Number(r.total_amount),collectedAmount:Number(r.collected_amount||0),expectedDate:r.expected_date||'',type:r.type,status:r.status}));
     const anyError=e1||e2||e3||e4||e5||e6||e7;
     setSyncStatus(anyError?'⚠ sync parcial':'✓ sincronizado');
+    if(!anyError)saveLocalCache(); // guardar snapshot solo si todo fue bien
     renderCurrentTab();
   }catch(err){
     clearTimeout(timeoutId);
@@ -1514,27 +1545,66 @@ function forceReload(){
 // ------- BOOT -------
 async function boot(){
   loadSettings();
-  if(!initSupabase()){
-    // No debería ocurrir con credenciales hardcodeadas, pero por seguridad:
-    showAuthScreen();return;
+  if(!initSupabase()){showAuthScreen();return;}
+
+  // ── LOCAL-FIRST: mostrar cache inmediatamente sin esperar a Supabase ──
+  const cache=loadLocalCache();
+  if(cache&&cache.userId&&cache.categories){
+    // Hidratar estado con datos del cache
+    state.categories      = cache.categories      || [];
+    state.transactions    = cache.transactions    || [];
+    state.fixedCosts      = cache.fixedCosts      || [];
+    state.fixedCostRecords= cache.fixedCostRecords|| [];
+    state.variableBudgets = cache.variableBudgets || [];
+    state.debts           = cache.debts           || [];
+    state.receivables     = cache.receivables     || [];
+    // Mostrar la app con datos del cache — sin flash de login
+    showApp();
+    setTab(state.tab||'home');
+    setSyncStatus('actualizando…');
+  }else{
+    // Sin cache: mostrar pantalla de login mientras resolvemos la sesión
+    showAuthScreen();
   }
-  // Mostrar auth screen mientras Supabase resuelve la sesión
-  showAuthScreen();
-  // Usamos SOLO onAuthStateChange — dispara INITIAL_SESSION al arrancar
-  // con la sesión vigente (si la hay), sin necesidad de llamar getSession() aparte.
-  // Esto evita que onSession() se ejecute dos veces.
+
+  // Timeout de 5 s: si Supabase no responde INITIAL_SESSION, ir a login
+  let authResolved=false;
+  const authTimeout=setTimeout(()=>{
+    if(!authResolved){
+      console.warn('[boot] auth timeout — mostrando login');
+      showAuthScreen();
+    }
+  },5000);
+
+  // SOLO onAuthStateChange — dispara INITIAL_SESSION al arrancar
   state.supabase.auth.onAuthStateChange(async(event,session)=>{
-    if((event==='INITIAL_SESSION'||event==='SIGNED_IN')&&session){
-      // Solo cargar datos en el inicio de sesión real — no en refreshes de token
-      await onSession(session);
+    if(event==='INITIAL_SESSION'||event==='SIGNED_IN'){
+      authResolved=true;
+      clearTimeout(authTimeout);
+      if(session){
+        // Si había cache de otro usuario, limpiarla antes de sincronizar
+        if(cache&&cache.userId&&cache.userId!==session.user.id){
+          clearLocalCache();
+          state.categories=[];state.transactions=[];
+          state.fixedCosts=[];state.fixedCostRecords=[];
+          state.variableBudgets=[];state.debts=[];state.receivables=[];
+        }
+        state.user=session.user;
+        showApp();
+        setTab(state.tab||'home');
+        await syncFromSupabase(); // sync en background — ya hay datos en pantalla
+      }else{
+        // No hay sesión activa → limpiar cache y mostrar login
+        clearLocalCache();
+        onSignOut();
+      }
     }else if(event==='TOKEN_REFRESHED'&&session&&state.user){
-      // Actualizar el token silenciosamente, sin re-sincronizar ni borrar datos
       state.user=session.user;
     }else if(event==='SIGNED_OUT'){
-      // Solo limpiar estado si el usuario cerró sesión activamente
+      authResolved=true;
+      clearTimeout(authTimeout);
       onSignOut();
     }
-    // INITIAL_SESSION sin sesión → no hacer nada, ya está en auth screen
   });
 }
 
