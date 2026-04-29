@@ -1,0 +1,76 @@
+<svg width="512" height="512" viewBox="0 0 680 680" xmlns="http://www.w3.org/2000/svg">
+<style>
+.bg{fill:#3D2485}.c1{fill:#FAF5EC}.c2{fill:#EDD9B4}.dark{fill:#160C04}
+.cg{fill:#FFD000}.cd{fill:#C89600}.collar{fill:#2D1E78}
+.ws{fill:white;opacity:0.55}.blush{fill:#E89080;opacity:0.2}
+</style>
+<rect width="680" height="680" rx="148" class="bg"/>
+<ellipse cx="340" cy="614" rx="148" ry="18" fill="#28168A" opacity="0.4"/>
+<circle cx="492" cy="408" r="30" class="c2"/>
+<circle cx="492" cy="408" r="21" class="c1"/>
+<circle cx="196" cy="468" r="72" class="c2"/>
+<circle cx="260" cy="440" r="80" class="c2"/>
+<circle cx="340" cy="428" r="88" class="c2"/>
+<circle cx="420" cy="440" r="80" class="c2"/>
+<circle cx="484" cy="468" r="72" class="c2"/>
+<ellipse cx="340" cy="478" rx="165" ry="142" class="c2"/>
+<circle cx="224" cy="445" r="58" class="c1"/>
+<circle cx="290" cy="424" r="66" class="c1"/>
+<circle cx="340" cy="418" r="70" class="c1"/>
+<circle cx="390" cy="424" r="66" class="c1"/>
+<circle cx="456" cy="445" r="58" class="c1"/>
+<circle cx="258" cy="500" r="55" class="c1"/>
+<circle cx="340" cy="490" r="62" class="c1"/>
+<circle cx="422" cy="500" r="55" class="c1"/>
+<ellipse cx="272" cy="574" rx="50" ry="36" class="c2"/>
+<circle cx="250" cy="562" r="22" class="c1"/>
+<circle cx="272" cy="556" r="25" class="c1"/>
+<circle cx="295" cy="563" r="22" class="c1"/>
+<ellipse cx="408" cy="574" rx="50" ry="36" class="c2"/>
+<circle cx="386" cy="562" r="22" class="c1"/>
+<circle cx="408" cy="556" r="25" class="c1"/>
+<circle cx="431" cy="563" r="22" class="c1"/>
+<circle cx="202" cy="272" r="70" class="c2"/>
+<circle cx="183" cy="300" r="60" class="c2"/>
+<circle cx="174" cy="270" r="54" class="c1"/>
+<circle cx="192" cy="248" r="50" class="c1"/>
+<circle cx="220" cy="238" r="46" class="c1"/>
+<circle cx="478" cy="272" r="70" class="c2"/>
+<circle cx="497" cy="300" r="60" class="c2"/>
+<circle cx="506" cy="270" r="54" class="c1"/>
+<circle cx="488" cy="248" r="50" class="c1"/>
+<circle cx="460" cy="238" r="46" class="c1"/>
+<circle cx="340" cy="270" r="122" class="c2"/>
+<circle cx="266" cy="244" r="56" class="c1"/>
+<circle cx="340" cy="230" r="62" class="c1"/>
+<circle cx="414" cy="244" r="56" class="c1"/>
+<circle cx="298" cy="292" r="48" class="c1"/>
+<circle cx="382" cy="292" r="48" class="c1"/>
+<circle cx="340" cy="282" r="54" class="c1"/>
+<circle cx="308" cy="174" r="52" class="c1"/>
+<circle cx="372" cy="174" r="52" class="c1"/>
+<circle cx="340" cy="163" r="50" class="c1"/>
+<rect x="308" y="136" width="64" height="20" rx="10" class="dark"/>
+<ellipse cx="340" cy="322" rx="60" ry="47" class="c1"/>
+<ellipse cx="340" cy="305" rx="28" ry="22" class="dark"/>
+<ellipse cx="330" cy="297" rx="9" ry="7" class="ws"/>
+<line x1="340" y1="325" x2="340" y2="315" stroke="#9A7850" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M316 330 Q340 352 364 330" stroke="#9A7850" stroke-width="5" fill="none" stroke-linecap="round"/>
+<circle cx="296" cy="277" r="17" class="dark"/>
+<circle cx="384" cy="277" r="17" class="dark"/>
+<circle cx="303" cy="270" r="7" fill="white"/>
+<circle cx="391" cy="270" r="7" fill="white"/>
+<circle cx="293" cy="282" r="3.5" fill="white" opacity="0.45"/>
+<circle cx="381" cy="282" r="3.5" fill="white" opacity="0.45"/>
+<path d="M283 258 Q296 249 313 254" stroke="#C0A878" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<path d="M367 254 Q384 249 397 258" stroke="#C0A878" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="274" cy="312" rx="30" ry="19" class="blush"/>
+<ellipse cx="406" cy="312" rx="30" ry="19" class="blush"/>
+<rect x="284" y="376" width="112" height="26" rx="13" class="collar"/>
+<circle cx="340" cy="389" r="13" class="cg"/>
+<circle cx="340" cy="389" r="9" class="cd"/>
+<circle cx="454" cy="98" r="40" class="cg"/>
+<circle cx="454" cy="98" r="31" class="cd"/>
+<text x="454" y="109" text-anchor="middle" font-size="30" font-weight="700" fill="#7A5000" font-family="Arial,sans-serif">$</text>
+<line x1="420" y1="118" x2="375" y2="144" stroke="#FFD000" stroke-width="4" stroke-dasharray="7,5" stroke-linecap="round" opacity="0.8"/>
+</svg>
