@@ -356,7 +356,7 @@
    ========================================================================= */
 
 // ------- CONFIG -------
-const APP_VERSION = '1.1.0'; // ← incrementar en cada deploy para forzar actualización
+const APP_VERSION = '1.2.0'; // ← incrementar en cada deploy para forzar actualización
 
 // Credenciales Supabase — la anon key es pública y segura para el frontend
 const SUPABASE_URL     = 'https://ufgbjanvreklpxhttsdg.supabase.co';
@@ -676,9 +676,14 @@ async function syncFromSupabase(){
     }
     // — Categorías (solo actualizar si la query tuvo éxito) —
     if(!e1&&cats){
-      const mapped=cats.map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+      // allCats incluye las soft-deleted (is_deleted=true) — necesarias para que
+      // ensureDefaultCategories no vuelva a crear categorías que el usuario eliminó.
+      const allCats=cats;
+      // Solo las categorías activas van al estado visible de la app
+      const mapped=cats.filter(c=>!c.is_deleted).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
       state.categories=mapped;
-      const seeded=await ensureDefaultCategories(mapped);
+      // Pasamos TODAS (incluidas eliminadas) para que el seed no regenere las borradas
+      const seeded=await ensureDefaultCategories(allCats);
       if(seeded.length)state.categories=[...state.categories,...seeded];
     }
     // — Transacciones (solo actualizar si la query tuvo éxito) —
@@ -780,8 +785,16 @@ async function remoteUpsertCat(cat){
   if(error)throw error;
 }
 async function remoteDeleteCat(id){
+  // Soft delete: marca la categoría como eliminada en vez de borrarla físicamente.
+  // Esto permite que ensureDefaultCategories la reconozca como "ya existió y fue
+  // eliminada intencionalmente", evitando que el seed la vuelva a crear en syncs futuros.
+  // Los movimientos históricos conservan su category_id intacto.
   if(!state.supabase||!state.user)return;
-  const{error}=await state.supabase.from('categories').delete().eq('id',id).eq('user_id',state.user.id);
+  const{error}=await state.supabase
+    .from('categories')
+    .update({is_deleted:true,deleted_at:new Date().toISOString()})
+    .eq('id',id)
+    .eq('user_id',state.user.id);
   if(error)throw error;
 }
 async function remoteMigrateCatTxs(fromId,toId){
