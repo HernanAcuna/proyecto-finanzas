@@ -364,7 +364,25 @@ const SUPABASE_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 
 const STORAGE_KEYS = { txs:'fin_transactions', cats:'fin_categories', settings:'fin_settings' };
 const CACHE_KEY = 'fin_snapshot_v1';
+const DELETED_CATS_KEY = 'fin_deleted_cats_v1'; // tombstone local de categorías eliminadas
 const SYSTEM_CATEGORY_NAMES = ['Otros Ing.','Otros Eg.'];
+
+// ------- TOMBSTONE DE CATEGORÍAS ELIMINADAS -------
+// Persiste en localStorage para que aunque remoteDeleteCat falle (red, timeout, etc.)
+// las categorías eliminadas nunca vuelvan a aparecer en la UI ni sean re-creadas por el seed.
+// Cada entrada: { id, name }
+function getTombstone(){
+  try{return JSON.parse(localStorage.getItem(DELETED_CATS_KEY)||'[]');}catch{return[];}
+}
+function addToTombstone(cat){
+  const t=getTombstone();
+  if(!t.find(x=>x.id===cat.id)){
+    t.push({id:cat.id,name:cat.name});
+    localStorage.setItem(DELETED_CATS_KEY,JSON.stringify(t));
+  }
+}
+function tombstoneIds(){return new Set(getTombstone().map(x=>x.id));}
+function tombstoneNames(){return new Set(getTombstone().map(x=>x.name.toLowerCase().trim()));}
 
 const DEFAULT_CATEGORIES = [
   {name:'Sueldo',type:'income',icon:'💼',color:'#22c55e'},{name:'Bonos',type:'income',icon:'🎁',color:'#16a34a'},
@@ -676,14 +694,30 @@ async function syncFromSupabase(){
     }
     // — Categorías (solo actualizar si la query tuvo éxito) —
     if(!e1&&cats){
-      // allCats incluye las soft-deleted (is_deleted=true) — necesarias para que
-      // ensureDefaultCategories no vuelva a crear categorías que el usuario eliminó.
-      const allCats=cats;
-      // Solo las categorías activas van al estado visible de la app
-      const mapped=cats.filter(c=>!c.is_deleted).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
+      const tIds=tombstoneIds();
+      const tNames=tombstoneNames();
+      // Si una categoría está en el tombstone local pero en Supabase aún tiene is_deleted=false
+      // (porque el UPDATE falló silenciosamente la vez anterior), re-aplicamos el soft delete.
+      cats.filter(c=>tIds.has(c.id)&&!c.is_deleted).forEach(c=>{
+        console.log('[sync] re-aplicando soft delete para:',c.name);
+        remoteDeleteCat(c.id).catch(e=>console.warn('[sync] re-delete falló:',e.message));
+      });
+      // Construir el set de nombres "usados" para el seed:
+      // incluye: las que están en Supabase (activas o eliminadas) + las del tombstone local.
+      // Así el seed nunca regenera una categoría que el usuario eliminó.
+      const allKnownNames=new Set([
+        ...cats.map(c=>c.name.toLowerCase().trim()),
+        ...tNames,
+      ]);
+      // Solo las categorías activas van al estado visible de la app:
+      // - is_deleted=false en Supabase
+      // - no están en el tombstone local (segunda línea de defensa)
+      const mapped=cats
+        .filter(c=>!c.is_deleted&&!tIds.has(c.id))
+        .map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
       state.categories=mapped;
-      // Pasamos TODAS (incluidas eliminadas) para que el seed no regenere las borradas
-      const seeded=await ensureDefaultCategories(allCats);
+      // Pasamos el set completo de nombres conocidos para que el seed respete eliminadas
+      const seeded=await ensureDefaultCategories(allKnownNames);
       if(seeded.length)state.categories=[...state.categories,...seeded];
     }
     // — Transacciones (solo actualizar si la query tuvo éxito) —
@@ -719,15 +753,18 @@ async function syncFromSupabase(){
   }
 }
 
-// Inserta solo las categorías predeterminadas que le faltan al usuario (por nombre)
-async function ensureDefaultCategories(existing){
+// Inserta solo las categorías predeterminadas que le faltan al usuario.
+// Acepta un Set<string> de nombres en minúscula+trim — construido en syncFromSupabase
+// incluyendo tanto las categorías remotas (activas y eliminadas) como el tombstone local.
+async function ensureDefaultCategories(knownNames){
   if(!state.supabase||!state.user)return[];
-  const existingNames=new Set(existing.map(c=>c.name));
-  const missing=DEFAULT_CATEGORIES.filter(c=>!existingNames.has(c.name));
+  // knownNames es un Set de nombres normalizados (lower+trim)
+  const missing=DEFAULT_CATEGORIES.filter(c=>!knownNames.has(c.name.toLowerCase().trim()));
   if(!missing.length)return[];
+  console.log('[seed] creando categorías que faltan:',missing.map(c=>c.name));
   const rows=missing.map(c=>({name:c.name,type:c.type,icon:c.icon,color:c.color,user_id:state.user.id}));
   const{data,error}=await state.supabase.from('categories').insert(rows).select();
-  if(error){console.error('Error seeding categories:',error);return[];}
+  if(error){console.error('[seed] error:',error);return[];}
   return(data||[]).map(c=>({id:c.id,name:c.name,type:c.type,icon:c.icon||'💠',color:c.color||'#4f8cff'}));
 }
 
@@ -1349,10 +1386,24 @@ function confirmDeleteCategory(cat){
   showConfirmModal({title:'Eliminar categoría',message:msg,onConfirm:()=>executeCategoryDelete(cat,fb)});
 }
 async function executeCategoryDelete(cat,fb){
-  if(fb){for(const tx of state.transactions)if(tx.category_id===cat.id)tx.category_id=fb.id;try{await remoteMigrateCatTxs(cat.id,fb.id);}catch{}}
+  if(fb){
+    for(const tx of state.transactions)if(tx.category_id===cat.id)tx.category_id=fb.id;
+    try{await remoteMigrateCatTxs(cat.id,fb.id);}catch(e){console.error('[cat] migración txs:',e);}
+  }
+  // 1. Tombstone local PRIMERO — es la garantía que persiste aunque el remote falle.
+  //    Si el UPDATE a Supabase no llega (red, timeout, etc.), el tombstone evita
+  //    que el sync posterior restaure la categoría.
+  addToTombstone(cat);
+  // 2. Quitar del estado local inmediatamente
   state.categories=state.categories.filter(c=>c.id!==cat.id);
-  try{await remoteDeleteCat(cat.id);}catch{}
-  renderCurrentTab();showToast(fb?`Eliminada. Movimientos → "${fb.name}".`:'Categoría eliminada.');
+  // 3. Intentar soft delete remoto — si falla, el tombstone ya protege
+  const remoteErr=await remoteDeleteCat(cat.id).then(()=>null).catch(e=>e);
+  if(remoteErr){
+    // Loguear el error real (visible en DevTools → Console) para diagnóstico
+    console.error('[cat] soft delete remoto falló — tombstone activo como respaldo:',remoteErr.message||remoteErr);
+  }
+  renderCurrentTab();
+  showToast(fb?`Eliminada. Movimientos → "${fb.name}".`:'Categoría eliminada.');
 }
 
 // ------- CONFIRM MODAL -------
