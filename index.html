@@ -183,6 +183,10 @@
     </div>
     <div class="p-4 space-y-4">
       <div id="txAmountDisplay" class="text-center text-4xl font-semibold py-3 rounded-xl bg-card">$0</div>
+      <div class="flex gap-2 justify-center">
+        <button id="txCurrARS" class="px-4 py-1.5 rounded-xl text-sm font-semibold bg-brand text-white">$ ARS</button>
+        <button id="txCurrUSD" class="px-4 py-1.5 rounded-xl text-sm font-semibold bg-card text-muted border border-line">U$D USD</button>
+      </div>
       <div class="grid grid-cols-3 gap-2">
         <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="1">1</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="2">2</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="3">3</button>
         <button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="4">4</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="5">5</button><button class="keypad-btn bg-card py-4 text-xl rounded-xl" data-key="6">6</button>
@@ -339,6 +343,21 @@
   </div>
 </div>
 
+<!-- Category detail sheet -->
+<div id="catDetailSheet" class="hidden fixed inset-0 z-30 modal-backdrop sheet-wrap flex items-end sm:items-center justify-center">
+  <div class="sheet-inner bg-surface w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-line fade-in max-h-[80vh] flex flex-col">
+    <div class="w-10 h-1 bg-line rounded-full mx-auto mt-3 mb-1 sm:hidden"></div>
+    <div class="px-4 py-3 border-b border-line flex items-center justify-between flex-shrink-0">
+      <div>
+        <h3 id="catDetailTitle" class="font-semibold"></h3>
+        <p id="catDetailSubtitle" class="text-xs text-muted mt-0.5"></p>
+      </div>
+      <button id="catDetailClose" class="p-1.5 rounded-lg hover:bg-card"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="catDetailList" class="overflow-y-auto flex-1 p-4 space-y-2"></div>
+  </div>
+</div>
+
 <div id="toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 bg-card border border-line rounded-lg px-4 py-2 text-sm z-40 whitespace-nowrap"></div>
 
 <!-- Banner de actualización disponible -->
@@ -356,7 +375,7 @@
    ========================================================================= */
 
 // ------- CONFIG -------
-const APP_VERSION = '1.2.0'; // ← incrementar en cada deploy para forzar actualización
+const APP_VERSION = '1.3.0'; // ← incrementar en cada deploy para forzar actualización
 
 // Credenciales Supabase — la anon key es pública y segura para el frontend
 const SUPABASE_URL     = 'https://ufgbjanvreklpxhttsdg.supabase.co';
@@ -365,7 +384,7 @@ const SUPABASE_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 const STORAGE_KEYS = { txs:'fin_transactions', cats:'fin_categories', settings:'fin_settings' };
 const CACHE_KEY = 'fin_snapshot_v1';
 const DELETED_CATS_KEY = 'fin_deleted_cats_v1'; // tombstone local de categorías eliminadas
-const SYSTEM_CATEGORY_NAMES = ['Otros Ing.','Otros Eg.'];
+const SYSTEM_CATEGORY_NAMES = ['Otros Ing.','Otros Eg.','Cambio de moneda'];
 
 // ------- TOMBSTONE DE CATEGORÍAS ELIMINADAS -------
 // Persiste en localStorage para que aunque remoteDeleteCat falle (red, timeout, etc.)
@@ -392,13 +411,15 @@ const DEFAULT_CATEGORIES = [
   {name:'Ocio',type:'expense',icon:'🎮',color:'#8b5cf6'},{name:'Educación',type:'expense',icon:'📚',color:'#3b82f6'},
   {name:'Ropa',type:'expense',icon:'👕',color:'#06b6d4'},{name:'Servicios',type:'expense',icon:'💡',color:'#f59e0b'},
   {name:'Otros Eg.',type:'expense',icon:'🧾',color:'#64748b'},
+  {name:'Cambio de moneda',type:'income',icon:'💱',color:'#f59e0b'},
+  {name:'Cambio de moneda',type:'expense',icon:'💱',color:'#f59e0b'},
 ];
 
 // ------- STATE -------
 const state = {
   tab:'home', transactions:[], categories:[], settings:{currency:'ARS',currencySymbol:'$',supabaseUrl:'',supabaseKey:'',hideBalances:false},
   supabase:null, user:null,
-  txModalOpen:false, txType:'expense', txAmountRaw:'', txCategoryId:null,
+  txModalOpen:false, txType:'expense', txAmountRaw:'', txCategoryId:null, txCurrency:'ARS',
   dashMonth:currentMonthKey(), dashChartType:'expense', chart:null,
   fixedCosts:[], fixedCostRecords:[], variableBudgets:[], debts:[], receivables:[],
   pendingSync:[],
@@ -415,11 +436,17 @@ function uid(){
   if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
 }
-function fmtMoney(n){
+function fmtMoney(n,sym){
   // Modo privacidad: oculta el valor numérico pero mantiene el símbolo
-  if(state.settings&&state.settings.hideBalances)return`${state.settings.currencySymbol||'$'}•••••`;
+  const symbol=sym||(state.settings&&state.settings.currencySymbol)||'$';
+  if(state.settings&&state.settings.hideBalances)return`${symbol}•••••`;
   const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0}).format(abs);
-  return `${n<0?'-':''}${state.settings.currencySymbol}${s}`;
+  return `${n<0?'-':''}${symbol}${s}`;
+}
+function fmtMoneyUSD(n){
+  if(state.settings&&state.settings.hideBalances)return'U$D •••••';
+  const abs=Math.abs(n);const s=new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(abs);
+  return `${n<0?'-':''}U$D ${s}`;
 }
 function parseAmount(raw){if(!raw)return 0;const n=parseInt(raw.replace(/\D/g,''),10);return isNaN(n)?0:n;}
 function showToast(msg,ms=2400){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.add('hidden'),ms);}
@@ -722,7 +749,7 @@ async function syncFromSupabase(){
     }
     // — Transacciones (solo actualizar si la query tuvo éxito) —
     if(!e2&&txs){
-      const remoteTxs=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',created_at:t.created_at}));
+      const remoteTxs=txs.map(t=>({id:t.id,amount:Number(t.amount),type:t.type,category_id:t.category_id,date:t.date,note:t.note||'',currency:t.currency||'ARS',created_at:t.created_at}));
       const remoteIds=new Set(remoteTxs.map(t=>t.id));
       // Limpiar pendingSync de items que Supabase ya tiene
       state.pendingSync=state.pendingSync.filter(p=>!remoteIds.has(p.id));
@@ -808,7 +835,7 @@ function diagnoseSaveError(err){
 async function remoteInsertTx(tx){
   // Lanzar error explícito si no hay sesión — para que saveTransaction pueda hacer rollback
   if(!state.supabase||!state.user)throw new Error('Sin sesión activa');
-  const{error}=await state.supabase.from('transactions').insert({id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,note:tx.note,user_id:state.user.id});
+  const{error}=await state.supabase.from('transactions').insert({id:tx.id,amount:tx.amount,type:tx.type,category_id:tx.category_id,date:tx.date,note:tx.note,currency:tx.currency||'ARS',user_id:state.user.id});
   if(error)throw error;
 }
 async function remoteDeleteTx(id){
@@ -843,8 +870,31 @@ async function remoteMigrateCatTxs(fromId,toId){
 // ------- HELPERS -------
 function getCategory(id){return state.categories.find(c=>c.id===id);}
 function getActualSpending(catId,mk){return state.transactions.filter(t=>t.category_id===catId&&t.type==='expense'&&(t.date||'').slice(0,7)===mk).reduce((s,t)=>s+t.amount,0);}
-function totalsAll(){let i=0,e=0;for(const t of state.transactions){if(t.type==='income')i+=t.amount;else e+=t.amount;}return{income:i,expense:e,balance:i-e};}
-function totalsByMonth(mk){let i=0,e=0;const byCat={};for(const t of state.transactions){if((t.date||'').slice(0,7)!==mk)continue;if(t.type==='income')i+=t.amount;else e+=t.amount;if(t.type==='expense')byCat[t.category_id]=(byCat[t.category_id]||0)+t.amount;}return{income:i,expense:e,balance:i-e,byCat};}
+function totalsAll(){
+  let i=0,e=0,iUSD=0,eUSD=0;
+  for(const t of state.transactions){
+    const isUSD=t.currency==='USD';
+    if(t.type==='income'){if(isUSD)iUSD+=t.amount;else i+=t.amount;}
+    else{if(isUSD)eUSD+=t.amount;else e+=t.amount;}
+  }
+  return{income:i,expense:e,balance:i-e,incomeUSD:iUSD,expenseUSD:eUSD,balanceUSD:iUSD-eUSD};
+}
+function totalsByMonth(mk){
+  let i=0,e=0,iUSD=0,eUSD=0;
+  const byCat={},byCatIncome={};
+  for(const t of state.transactions){
+    if((t.date||'').slice(0,7)!==mk)continue;
+    const isUSD=t.currency==='USD';
+    if(t.type==='income'){
+      if(isUSD)iUSD+=t.amount;
+      else{i+=t.amount;byCatIncome[t.category_id]=(byCatIncome[t.category_id]||0)+t.amount;}
+    }else{
+      if(isUSD)eUSD+=t.amount;
+      else{e+=t.amount;byCat[t.category_id]=(byCat[t.category_id]||0)+t.amount;}
+    }
+  }
+  return{income:i,expense:e,balance:i-e,byCat,byCatIncome,incomeUSD:iUSD,expenseUSD:eUSD,balanceUSD:iUSD-eUSD};
+}
 function debtTypeLabel(t){return{loan:'Préstamo',card:'Tarjeta',current_account:'Cta. cte.',other:'Otro'}[t]||t;}
 function rcvTypeLabel(t){return{loan:'Préstamo',current_account:'Cta. cte.',sale:'Venta',other:'Otro'}[t]||t;}
 function statusLabel(s){return{pending:'Pendiente',partial:'Parcial',paid:'Saldado',collected:'Cobrado'}[s]||s;}
@@ -909,7 +959,7 @@ function renderTxRow(tx){
   row.innerHTML=`
     <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" style="background:${cat.color}22;border:1px solid ${cat.color}66;">${cat.icon||'•'}</div>
     <div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-medium truncate">${cat.name}</span><span class="text-xs text-muted">${tx.date}</span></div><div class="text-xs text-muted truncate">${tx.note||'—'}</div></div>
-    <div class="text-right"><div class="font-semibold ${tx.type==='income'?'text-income':'text-expense'}">${tx.type==='income'?'+':'−'}${fmtMoney(tx.amount)}</div><button class="text-xs text-muted hover:text-expense mt-1" data-del="${tx.id}">Eliminar</button></div>`;
+    <div class="text-right"><div class="font-semibold ${tx.type==='income'?'text-income':'text-expense'}">${tx.type==='income'?'+':'−'}${tx.currency==='USD'?fmtMoneyUSD(tx.amount):fmtMoney(tx.amount)}</div>${tx.currency==='USD'?'<div class="text-xs font-medium" style="color:#f59e0b;">USD</div>':''}<button class="text-xs text-muted hover:text-expense mt-1" data-del="${tx.id}">Eliminar</button></div>`;
   row.querySelector('[data-del]').onclick=async()=>{if(!confirm('¿Eliminar este movimiento?'))return;await deleteTransaction(tx.id);};
   return row;
 }
@@ -918,12 +968,8 @@ function renderTxRow(tx){
 function viewDashboard(){
   const root=document.createElement('div');root.className='fade-in space-y-4';
   const mk=state.dashMonth;
-  const{income,expense,byCat}=totalsByMonth(mk);
-
-  // Calcular ingresos por categoría (para el toggle del gráfico)
-  const byCatIncome={};
-  state.transactions.filter(t=>(t.date||'').slice(0,7)===mk&&t.type==='income')
-    .forEach(t=>{byCatIncome[t.category_id]=(byCatIncome[t.category_id]||0)+t.amount;});
+  const{income,expense,byCat,byCatIncome,incomeUSD,expenseUSD,balanceUSD}=totalsByMonth(mk);
+  const hasUSD=incomeUSD>0||expenseUSD>0;
 
   const ct=state.dashChartType; // 'income' | 'expense'
   const chartData=ct==='income'?byCatIncome:byCat;
@@ -960,36 +1006,52 @@ function viewDashboard(){
       </button>
     </div>
 
+    ${hasUSD?`
+    <div class="rounded-xl border border-line p-3 flex items-center justify-between" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.3);">
+      <div class="flex items-center gap-2"><span class="text-lg">💵</span><span class="text-sm text-muted">Saldo USD este mes</span></div>
+      <div class="text-right">
+        <div class="font-semibold text-sm ${balanceUSD>=0?'text-income':'text-expense'}">${fmtMoneyUSD(balanceUSD)}</div>
+        <div class="text-xs text-muted">${fmtMoneyUSD(incomeUSD)} ing · ${fmtMoneyUSD(expenseUSD)} eg</div>
+      </div>
+    </div>`:''}
+
     <div class="rounded-2xl bg-card border border-line p-4">
       <h3 class="font-semibold mb-2">${chartTitle}</h3>
       <div class="relative" style="height:260px;"><canvas id="pieChart"></canvas></div>
-      <div id="catLegend" class="mt-3 space-y-2"></div>
+      <div id="catLegend" class="mt-3 space-y-1"></div>
     </div>
 
     <div class="rounded-2xl bg-card border border-line p-4">
-      <h3 class="font-semibold mb-2">Total histórico</h3>
+      <h3 class="font-semibold mb-2">Total histórico <span class="text-xs text-muted font-normal">(ARS)</span></h3>
       <div class="grid grid-cols-2 gap-2 text-center">
         <div><div class="text-xs text-muted">Ingresos</div><div class="text-income font-semibold">${fmtMoney(hist.income)}</div></div>
         <div><div class="text-xs text-muted">Egresos</div><div class="text-expense font-semibold">${fmtMoney(hist.expense)}</div></div>
       </div>
     </div>`;
 
-  setTimeout(()=>renderPie(chartData,root.querySelector('#catLegend'),ct),0);
+  setTimeout(()=>renderPie(chartData,root.querySelector('#catLegend'),ct,mk),0);
 
   root.querySelector('#dashMonth').addEventListener('change',e=>{state.dashMonth=e.target.value||currentMonthKey();renderCurrentTab();});
   root.querySelector('#dashBtnIncome').onclick=()=>{if(ct!=='income'){state.dashChartType='income';renderCurrentTab();}};
   root.querySelector('#dashBtnExpense').onclick=()=>{if(ct!=='expense'){state.dashChartType='expense';renderCurrentTab();}};
   return root;
 }
-function renderPie(byCat,legendEl,chartType='expense'){
+function renderPie(byCat,legendEl,chartType='expense',mk){
   const canvas=document.getElementById('pieChart');if(!canvas)return;
-  const entries=Object.entries(byCat).map(([cid,v])=>{const c=getCategory(cid)||{name:'Sin cat.',color:'#8b97a8'};return{name:c.name,color:c.color,value:v};}).sort((a,b)=>b.value-a.value);
+  const entries=Object.entries(byCat).map(([cid,v])=>{const c=getCategory(cid)||{name:'Sin cat.',color:'#8b97a8'};return{id:cid,name:c.name,color:c.color,value:v};}).sort((a,b)=>b.value-a.value);
   if(state.chart){state.chart.destroy();state.chart=null;}
   const emptyLabel=chartType==='income'?'Sin ingresos este mes':'Sin egresos este mes';
   if(!entries.length){legendEl.innerHTML=`<div class="text-muted text-center text-sm">${emptyLabel}</div>`;return;}
   state.chart=new Chart(canvas.getContext('2d'),{type:'doughnut',data:{labels:entries.map(e=>e.name),datasets:[{data:entries.map(e=>e.value),backgroundColor:entries.map(e=>e.color),borderWidth:2,borderColor:'#141a22'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtMoney(ctx.parsed)}`}}},cutout:'60%'}});
   const total=entries.reduce((s,e)=>s+e.value,0);
-  legendEl.innerHTML=entries.map(e=>`<div class="flex items-center justify-between text-sm"><div class="flex items-center gap-2 min-w-0"><span class="w-3 h-3 rounded-sm inline-block" style="background:${e.color}"></span><span class="truncate">${e.name}</span></div><div class="flex items-center gap-3 text-muted"><span>${((e.value/total)*100).toFixed(1)}%</span><span class="text-text font-medium">${fmtMoney(e.value)}</span></div></div>`).join('');
+  legendEl.innerHTML='';
+  entries.forEach(e=>{
+    const row=document.createElement('button');
+    row.className='flex items-center justify-between text-sm w-full hover:bg-line/50 rounded-lg px-1 py-1.5 transition-colors -mx-1';
+    row.innerHTML=`<div class="flex items-center gap-2 min-w-0"><span class="w-3 h-3 rounded-sm inline-block flex-shrink-0" style="background:${e.color}"></span><span class="truncate">${e.name}</span></div><div class="flex items-center gap-2 text-muted"><span>${((e.value/total)*100).toFixed(1)}%</span><span class="text-text font-medium">${fmtMoney(e.value)}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>`;
+    row.onclick=()=>openCatDetailSheet(e.id,chartType,mk||state.dashMonth);
+    legendEl.appendChild(row);
+  });
 }
 
 // ------- VIEW: CONTROL -------
@@ -1262,16 +1324,25 @@ function exportJson(){
 
 // ------- TX MODAL -------
 function openTxModal(type){
-  state.txType=type;state.txAmountRaw='';state.txCategoryId=null;
+  state.txType=type;state.txAmountRaw='';state.txCategoryId=null;state.txCurrency='ARS';
   document.getElementById('txTitle').textContent=type==='income'?'Nuevo Ingreso':'Nuevo Egreso';
   document.getElementById('txDate').value=todayIso();document.getElementById('txNote').value='';
-  updateTxAmountDisplay();renderTxCategories();
+  refreshCurrencyToggle();updateTxAmountDisplay();renderTxCategories();
   const m=document.getElementById('txModal');m.classList.remove('hidden');m.classList.add('flex');state.txModalOpen=true;
 }
 function closeTxModal(){const m=document.getElementById('txModal');m.classList.add('hidden');m.classList.remove('flex');state.txModalOpen=false;}
 function updateTxAmountDisplay(){
-  const el=document.getElementById('txAmountDisplay');el.textContent=fmtMoney(parseAmount(state.txAmountRaw));
+  const el=document.getElementById('txAmountDisplay');
+  const sym=state.txCurrency==='USD'?'U$D ':(state.settings.currencySymbol||'$');
+  el.textContent=fmtMoney(parseAmount(state.txAmountRaw),sym);
   el.className='text-center text-4xl font-semibold py-3 rounded-xl bg-card '+(state.txType==='income'?'text-income':'text-expense');
+}
+function refreshCurrencyToggle(){
+  const arsBtn=document.getElementById('txCurrARS');const usdBtn=document.getElementById('txCurrUSD');
+  if(!arsBtn||!usdBtn)return;
+  const isUSD=state.txCurrency==='USD';
+  arsBtn.className=`px-4 py-1.5 rounded-xl text-sm font-semibold ${isUSD?'bg-card text-muted border border-line':'bg-brand text-white'}`;
+  usdBtn.className=`px-4 py-1.5 rounded-xl text-sm font-semibold ${isUSD?'bg-brand text-white':'bg-card text-muted border border-line'}`;
 }
 function keypadPress(key){
   if(key==='back'){
@@ -1304,6 +1375,7 @@ async function saveTransaction(){
   const tx={id:uid(),amount,type:state.txType,category_id:state.txCategoryId,
     date:document.getElementById('txDate').value||todayIso(),
     note:document.getElementById('txNote').value.trim(),
+    currency:state.txCurrency||'ARS',
     created_at:new Date().toISOString(),_pending:true};
   // 1. UI inmediata — sin esperar Supabase
   state.transactions.unshift(tx);
@@ -1339,6 +1411,29 @@ async function deleteTransaction(id){
     try{await remoteDeleteTx(id);}catch(e){console.warn('[delete] fallo remoto:',e?.message);}
   }
 }
+
+// ------- CATEGORY DETAIL SHEET -------
+function openCatDetailSheet(catId,chartType,mk){
+  const cat=getCategory(catId)||{name:'Sin categoría',icon:'•',color:'#8b97a8'};
+  const txs=state.transactions
+    .filter(t=>(t.date||'').slice(0,7)===mk&&t.category_id===catId&&t.type===chartType&&t.currency!=='USD')
+    .sort((a,b)=>(b.date+(b.created_at||'')).localeCompare(a.date+(a.created_at||'')));
+  const total=txs.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('catDetailTitle').textContent=`${cat.icon||'•'} ${cat.name}`;
+  document.getElementById('catDetailSubtitle').textContent=`${txs.length} movimiento${txs.length!==1?'s':''} · ${fmtMoney(total)} · ${formatMonthLabel(mk)}`;
+  const list=document.getElementById('catDetailList');list.innerHTML='';
+  if(!txs.length){
+    list.innerHTML='<div class="text-muted text-center text-sm py-4">Sin movimientos registrados.</div>';
+  }else{
+    txs.forEach(tx=>{
+      const row=document.createElement('div');row.className='flex items-center justify-between bg-card border border-line rounded-xl p-3 gap-3';
+      row.innerHTML=`<div class="flex-1 min-w-0"><div class="text-sm font-medium">${tx.date}</div><div class="text-xs text-muted truncate">${tx.note||'—'}</div></div><div class="font-semibold text-sm ${chartType==='income'?'text-income':'text-expense'}">${chartType==='income'?'+':'−'}${fmtMoney(tx.amount)}</div>`;
+      list.appendChild(row);
+    });
+  }
+  const sheet=document.getElementById('catDetailSheet');sheet.classList.remove('hidden');sheet.classList.add('flex');
+}
+function closeCatDetailSheet(){const s=document.getElementById('catDetailSheet');s.classList.add('hidden');s.classList.remove('flex');}
 
 // Sube a Supabase las txs que quedaron en cola (sin sesión o sin red)
 async function flushPendingSync(){
@@ -1561,6 +1656,13 @@ document.getElementById('debtModalClose').onclick=closeDebtModal;document.getEle
 document.getElementById('rcvModalClose').onclick=closeReceivableModal;document.getElementById('rcvModalCancel').onclick=closeReceivableModal;document.getElementById('rcvModalSave').onclick=saveReceivable;
 // Close dropdowns on outside click
 document.addEventListener('click',e=>{if(!e.target.closest('.cat-card'))closeCatMenus();});
+// Category detail sheet
+document.getElementById('catDetailClose').onclick=closeCatDetailSheet;
+document.getElementById('catDetailSheet').addEventListener('click',e=>{if(e.target===document.getElementById('catDetailSheet'))closeCatDetailSheet();});
+// Currency toggle
+document.getElementById('txCurrARS').onclick=()=>{state.txCurrency='ARS';refreshCurrencyToggle();updateTxAmountDisplay();};
+document.getElementById('txCurrUSD').onclick=()=>{state.txCurrency='USD';refreshCurrencyToggle();updateTxAmountDisplay();};
+
 // Keyboard for tx modal
 document.addEventListener('keydown',e=>{
   if(!state.txModalOpen)return;
